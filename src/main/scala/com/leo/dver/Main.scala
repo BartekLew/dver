@@ -59,8 +59,13 @@ class ReadHandler extends HttpHandler {
 	
 	def jsId(id:String) = "document.getElementById(\"" + id + "\")"
 
+	def fileContent(f:File) = f.exists match {
+		case true => fromFile(f).mkString
+		case false => ""
+	}
+
 	def textEditor(file:File) : String =
-		tag("textarea", "id=\"texted\"", fromFile(file).mkString) +
+		tag("textarea", "id=\"texted\"", fileContent(file)) +
 		jsFun("updateFile",
 			jsHttpPost("/w/" + file.getPath,
 				jsId("texted") + ".value"
@@ -68,8 +73,23 @@ class ReadHandler extends HttpHandler {
 		) + "<br/>" +
 		tag("button", "onclick=\"updateFile()\"", "save")
 
+	def textInput(id:String) =
+		"<input type=\"text\" id=\"" + id + "\"/>"
+
+	def dirList(f:File) =
+		doc(
+			blist(f.listFiles.toList.map(fileLink)) + "<br/>" +
+			textInput("newfilename") + 
+			jsFun("newFile",
+				"window.location.href=\"/r/" +
+					f.getPath + "/\" + " +
+					jsId("newfilename") + ".value;"
+			) + 
+			tag("button", "onclick=\"newFile()\"", "create")
+		)
+
 	def doc(file:File) : String = file.isDirectory match {
-		case true => doc(blist(file.listFiles.toList.map(fileLink)))
+		case true => dirList(file) 
 		case false => doc(textEditor(file))
 	}
 
