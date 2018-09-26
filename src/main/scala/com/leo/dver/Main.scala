@@ -27,13 +27,20 @@ class RootHandler extends HttpHandler {
 			x + "<li>" + r + "</li>"
 		} + "</ul>"
 
+	def simpleLink(url:String, text:String) :String =
+		tag("a", "href=\"" + url + "\"", text)
+
+	def fileLink(f:File) : String =
+		simpleLink("^\\.".r.replaceFirstIn(f.getPath,""), f.getName)		
+
 	def doc(innerHtml:String) : String = tag("html",
 		tag("body", innerHtml)
 	)
 
 	def handle(t: HttpExchange) {
 		val response = doc(blist(
-			new File(".").listFiles.toList.map (f=>f.getName)
+			new File( "." + t.getRequestURI.getPath)
+				.listFiles.toList.map(fileLink)
 		))
 		t.sendResponseHeaders(200, response.length())
 		val os = t.getResponseBody
