@@ -2,6 +2,7 @@ package me.leo.dver
 
 import java.io.{InputStream, OutputStream, File}
 import java.net.InetSocketAddress
+import scala.io.Source._
 
 import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
 
@@ -37,11 +38,18 @@ class RootHandler extends HttpHandler {
 		tag("body", innerHtml)
 	)
 
+	def plainText(file:File) : String =
+		fromFile(file).mkString
+			.replaceAll("<", "&lt;")
+			.replaceAll(">", "&gt;")
+
+	def doc(file:File) : String = file.isDirectory match {
+		case true => doc(blist(file.listFiles.toList.map(fileLink)))
+		case false => doc(tag("pre", plainText(file)))
+	}
+
 	def handle(t: HttpExchange) {
-		val response = doc(blist(
-			new File( "." + t.getRequestURI.getPath)
-				.listFiles.toList.map(fileLink)
-		))
+		val response = doc(new File( "." + t.getRequestURI.getPath))
 		t.sendResponseHeaders(200, response.length())
 		val os = t.getResponseBody
 		os.write(response.getBytes)
