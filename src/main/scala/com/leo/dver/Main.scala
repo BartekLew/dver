@@ -65,6 +65,7 @@ class ReadHandler extends HttpHandler {
 	}
 
 	def textEditor(file:File) : String =
+		tag("h3", "File: " + file.getPath) +
 		tag("textarea", "id=\"texted\"", fileContent(file)) +
 		jsFun("updateFile",
 			jsHttpPost("/w/" + file.getPath,
@@ -78,6 +79,7 @@ class ReadHandler extends HttpHandler {
 
 	def dirList(f:File) =
 		doc(
+			tag("h3", "Directory: " + f.getPath) +
 			blist(f.listFiles.toList.map(fileLink)) + "<br/>" +
 			textInput("newfilename") + 
 			jsFun("newFile",
