@@ -17,6 +17,7 @@ object Main {
 		val server = HttpServer.create(new InetSocketAddress(port), 0)
 		server.createContext("/r/", new ReadHandler())
 		server.createContext("/w/", new WriteHandler())
+		server.createContext("/d/", new DeleteHandler())
 		server.setExecutor(null)
 		server.start()
 	}
@@ -59,6 +60,10 @@ class Link(url:String, text:String) extends Tag(
 	"a",Map("href" -> url), Some(text)
 )
 
+class StyledLink(url:String, style:String, text:String) extends Tag(
+	"a",Map("href" -> url, "style"->style), Some(text)
+)
+
 class Encoding(v:String) extends Tag("meta", Map("charset" -> v))
 
 class CssBlock(rules:Map[String,String]) extends Tag("style", Map(),
@@ -78,7 +83,10 @@ class Button(text:String, action:String) extends Tag(
 
 class ReadHandler extends HttpHandler {
 	def fileLink(f:File) : String =
-		new Link("/r/" + f.getPath, f.getName).toString
+		new Link("/r/" + f.getPath, f.getName).toString +
+		new StyledLink("/d/" + f.getPath,
+			"margin-left:1ex;font-size:0.8em;font-weight:bold;",
+			"x").toString
 
 	def headCss(styles:Map[String,String]) = new Tag("head",
 		List(new Encoding("utf-8"), new CssBlock(styles))
@@ -165,6 +173,23 @@ class WriteHandler extends HttpHandler {
 		}
 
 		val response = "<resp status=\"ok\"/>"
+		t.sendResponseHeaders(200, response.length)
+		
+		val o = t.getResponseBody
+		o.write(response.getBytes);
+		o.close
+	}
+}
+
+class DeleteHandler extends HttpHandler {
+	def lPath(t:HttpExchange) =
+		"." + "^/d".r.replaceFirstIn(t.getRequestURI.getPath,"")
+
+	def handle(t:HttpExchange) {
+		val target = new File(lPath(t))
+		target.delete
+
+		val response = new ReadHandler().fileDoc(target.getParentFile)
 		t.sendResponseHeaders(200, response.length)
 		
 		val o = t.getResponseBody
