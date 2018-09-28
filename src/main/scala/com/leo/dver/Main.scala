@@ -10,7 +10,11 @@ import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
 object Main {
 
 	def main(args: Array[String]) {
-		val server = HttpServer.create(new InetSocketAddress(8000), 0)
+		var port = 8000
+		if(args.size > 0)
+			port = args(0).toInt
+	
+		val server = HttpServer.create(new InetSocketAddress(port), 0)
 		server.createContext("/r/", new ReadHandler())
 		server.createContext("/w/", new WriteHandler())
 		server.setExecutor(null)
