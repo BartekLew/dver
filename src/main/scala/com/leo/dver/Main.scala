@@ -134,7 +134,19 @@ class ReadHandler extends HttpHandler {
 				f.getPath + "/\" + " +
 				jsId("newfilename") + ".value;"
 		), 
-		new Button("Create", "newFile()")
+		new Button("Create", "newFile()"),
+		new Tag("br"),
+		new Tag("input", Map("type"->"file", "id"->"upFile")),
+		new JsFunction("uploadFile",
+			"var f = " + jsId("upFile") + ".files[0];" +
+			"var o = new XMLHttpRequest();" +
+			"o.open(\"POST\", \"/w/" + f.getPath + "/\" + f.name);"+
+			"o.onreadystatechange = function(){ " +
+				"if(this.readyState == XMLHttpRequest.DONE" +
+				" && this.status == 200) window.location.reload(false);};" +
+			"o.send(f);"
+		),
+		new Button("Upload", "uploadFile()")
 	)
 
 	def fileDoc(file:File) : String = file.isDirectory match {
@@ -164,12 +176,12 @@ class WriteHandler extends HttpHandler {
 	def handle(t:HttpExchange) {
 		{
 			val o = new PrintWriter(lPath(t))
-				val i = t.getRequestBody
+			val i = t.getRequestBody
 
-				Iterator.continually(i.read)
+			Iterator.continually(i.read)
 				.takeWhile(-1 !=)
 				.foreach(o.write)
-				o.close
+			o.close
 		}
 
 		val response = "<resp status=\"ok\"/>"
