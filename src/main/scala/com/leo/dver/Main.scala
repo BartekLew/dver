@@ -72,23 +72,22 @@ class CssBlock(rules:Map[String,String]) extends Tag("style", Map(),
 	}
 ))
 
-class JsFunction(name:String, body:String) extends Tag(
-	"script", Map("type" -> "text/javascript"),
-	Some("function " + name + "() {" + body + "}")
-)
-
 class Button(text:String, action:String) extends Tag(
 	"button", Map("onclick"->action), Some(text)
 )
 
 trait Iface {
-	def l:List[Tag]
+	def tags:List[Tag]
+	def js:String
 
 	def merge(ifaces:List[Iface]): List[Tag] = ifaces.size match {
-		case 0 => this.l
-		case _ => this.l ++ List(new Tag("br")) ++ 
+		case 0 => this.tags
+		case _ => this.tags ++ List(new Tag("br")) ++ 
 				ifaces.head.merge(ifaces.tail)
 	}
+
+	def jsFun(name:String, body:String) =
+		"function " + name + "() {" + body + "}"
 }
 
 class DirListing(f:File) extends Iface {
@@ -98,42 +97,46 @@ class DirListing(f:File) extends Iface {
 			"margin-left:1ex;font-size:0.8em;font-weight:bold;",
 			"x").toString
 
-	def l = List(
+	def tags = List(
 		new Tag("h3", Map(), Some("Directory: " + f.getPath)),
 		new BList(f.listFiles.toList.map(fileLink))
 	)
+
+	def js = ""
 }
 
 class FileCreator(cwd:File) extends Iface {
 	def jsId(id:String) = "document.getElementById(\"" + id + "\")"
 
-	def l = List(
+	def tags = List(
 		new Tag("input", Map("type"->"text", "id"->"newfilename")),
-		new JsFunction("newFile",
-			"window.location.href=\"/r/" +
-				cwd.getPath + "/\" + " +
-				jsId("newfilename") + ".value;"
-		), 
 		new Button("Create", "newFile()")
 	)
+
+	def js = jsFun("newFile",
+		"window.location.href=\"/r/" +
+		cwd.getPath + "/\" + " +
+		jsId("newfilename") + ".value;"
+	) 
 }
 
 class FileUploader(cwd:File) extends Iface {
 	def jsId(id:String) = "document.getElementById(\"" + id + "\")"
 
-	def l = List(
+	def tags = List(
 		new Tag("input", Map("type"->"file", "id"->"upFile")),
-		new JsFunction("uploadFile",
-			"var f = " + jsId("upFile") + ".files[0];" +
-			"var o = new XMLHttpRequest();" +
-			"o.open(\"POST\", \"/w/"+ cwd.getPath +"/\"+ f.name);"+
-			"o.onreadystatechange = function(){ " +
-				"if(this.readyState == XMLHttpRequest.DONE" +
-				" && this.status == 200)" +
-				" window.location.reload(false);};" +
-			"o.send(f);"
-		),
 		new Button("Upload", "uploadFile()")
+	)
+
+	def js = jsFun("uploadFile",
+		"var f = " + jsId("upFile") + ".files[0];" +
+		"var o = new XMLHttpRequest();" +
+		"o.open(\"POST\", \"/w/"+ cwd.getPath +"/\"+ f.name);"+
+		"o.onreadystatechange = function(){ " +
+			"if(this.readyState == XMLHttpRequest.DONE" +
+			" && this.status == 200)" +
+			" window.location.reload(false);};" +
+		"o.send(f);"
 	)
 }
 
@@ -153,35 +156,41 @@ class FileEditor(cwd:File) extends Iface {
 		case false => ""
 	}
 
-	def l = List(
+	def tags = List(
 		new Tag("h3", Map(), Some("File: " + cwd.getPath)),
 		new Tag("textarea", Map("id" -> "texted"),
 			Some(fileContent(cwd))),
-		new JsFunction("updateFile",
-			jsHttpPost("/w/" + cwd.getPath,
-				jsId("texted") + ".value"
-			)),
 		new Tag("br"),
 		new Button("save", "updateFile()")
 	)
+
+	def js = jsFun("updateFile",
+		jsHttpPost("/w/" + cwd.getPath,
+			jsId("texted") + ".value"
+		))
 }
 
 class Document(ifaces : List[Iface]) extends Iface {
-	private def tags = ifaces.size match {
+	private def getTags = ifaces.size match {
 		case 0 => List()
 		case _ => ifaces.head.merge(ifaces.tail)
 	}
 
 	def headCss(styles:Map[String,String]) = new Tag("head",
-		List(new Encoding("utf-8"), new CssBlock(styles))
+		List(new Encoding("utf-8"), new CssBlock(styles),
+			new Tag("script", js))
 	)
 
-	def l = List(
+	def tags = List(
 		headCss(Map("textarea"->"width:90%;height:90%")),
-		new Tag("body", tags)
+		new Tag("body", getTags)
 	)
 
-	def html = new Tag("html", l).toString
+	def js = ifaces.foldLeft("") {
+		(a,v) => a + v.js
+	}
+
+	def html = new Tag("html", tags).toString
 }
 
 class ReadHandler extends HttpHandler {
