@@ -81,22 +81,63 @@ class Button(text:String, action:String) extends Tag(
 	"button", Map("onclick"->action), Some(text)
 )
 
-class ReadHandler extends HttpHandler {
+trait Iface {
+	def l:List[Tag]
+
+	def merge(ifaces:List[Iface]): List[Tag] = ifaces.size match {
+		case 0 => this.l
+		case _ => this.l ++ List(new Tag("br")) ++ 
+				ifaces.head.merge(ifaces.tail)
+	}
+}
+
+class DirListing(f:File) extends Iface {
 	def fileLink(f:File) : String =
 		new Link("/r/" + f.getPath, f.getName).toString +
 		new StyledLink("/d/" + f.getPath,
 			"margin-left:1ex;font-size:0.8em;font-weight:bold;",
 			"x").toString
 
-	def headCss(styles:Map[String,String]) = new Tag("head",
-		List(new Encoding("utf-8"), new CssBlock(styles))
+	def l = List(
+		new Tag("h3", Map(), Some("Directory: " + f.getPath)),
+		new BList(f.listFiles.toList.map(fileLink))
 	)
+}
 
-	def doc(body:List[Tag]) : String = new Tag("html",
-		List(	headCss(Map("textarea"->"width:90%;height:90%")),
-			new Tag("body", body)
-		)).toString
+class FileCreator(cwd:File) extends Iface {
+	def jsId(id:String) = "document.getElementById(\"" + id + "\")"
 
+	def l = List(
+		new Tag("input", Map("type"->"text", "id"->"newfilename")),
+		new JsFunction("newFile",
+			"window.location.href=\"/r/" +
+				cwd.getPath + "/\" + " +
+				jsId("newfilename") + ".value;"
+		), 
+		new Button("Create", "newFile()")
+	)
+}
+
+class FileUploader(cwd:File) extends Iface {
+	def jsId(id:String) = "document.getElementById(\"" + id + "\")"
+
+	def l = List(
+		new Tag("input", Map("type"->"file", "id"->"upFile")),
+		new JsFunction("uploadFile",
+			"var f = " + jsId("upFile") + ".files[0];" +
+			"var o = new XMLHttpRequest();" +
+			"o.open(\"POST\", \"/w/"+ cwd.getPath +"/\"+ f.name);"+
+			"o.onreadystatechange = function(){ " +
+				"if(this.readyState == XMLHttpRequest.DONE" +
+				" && this.status == 200)" +
+				" window.location.reload(false);};" +
+			"o.send(f);"
+		),
+		new Button("Upload", "uploadFile()")
+	)
+}
+
+class FileEditor(cwd:File) extends Iface {
 	def jsHttpPost(uri:String, body:String) =
 		"var o = new XMLHttpRequest();" +
 		"o.open(\"POST\", \"" + uri + "\", true);" +
@@ -112,46 +153,36 @@ class ReadHandler extends HttpHandler {
 		case false => ""
 	}
 
-	def textEditor(file:File) = List(
-		new Tag("h3", Map(), Some("File: " + file.getPath)),
+	def l = List(
+		new Tag("h3", Map(), Some("File: " + cwd.getPath)),
 		new Tag("textarea", Map("id" -> "texted"),
-			Some(fileContent(file))),
+			Some(fileContent(cwd))),
 		new JsFunction("updateFile",
-			jsHttpPost("/w/" + file.getPath,
+			jsHttpPost("/w/" + cwd.getPath,
 				jsId("texted") + ".value"
 			)),
 		new Tag("br"),
 		new Button("save", "updateFile()")
 	)
+}
 
-	def dirList(f:File) = List(
-		new Tag("h3", Map(), Some("Directory: " + f.getPath)),
-		new BList(f.listFiles.toList.map(fileLink)),
-		new Tag("br"),
-		new Tag("input", Map("type"->"text", "id"->"newfilename")),
-		new JsFunction("newFile",
-			"window.location.href=\"/r/" +
-				f.getPath + "/\" + " +
-				jsId("newfilename") + ".value;"
-		), 
-		new Button("Create", "newFile()"),
-		new Tag("br"),
-		new Tag("input", Map("type"->"file", "id"->"upFile")),
-		new JsFunction("uploadFile",
-			"var f = " + jsId("upFile") + ".files[0];" +
-			"var o = new XMLHttpRequest();" +
-			"o.open(\"POST\", \"/w/" + f.getPath + "/\" + f.name);"+
-			"o.onreadystatechange = function(){ " +
-				"if(this.readyState == XMLHttpRequest.DONE" +
-				" && this.status == 200) window.location.reload(false);};" +
-			"o.send(f);"
-		),
-		new Button("Upload", "uploadFile()")
+class ReadHandler extends HttpHandler {
+	def headCss(styles:Map[String,String]) = new Tag("head",
+		List(new Encoding("utf-8"), new CssBlock(styles))
 	)
 
+	def doc(body:List[Tag]) : String = new Tag("html",
+		List(	headCss(Map("textarea"->"width:90%;height:90%")),
+			new Tag("body", body)
+		)).toString
+
 	def fileDoc(file:File) : String = file.isDirectory match {
-		case true => doc(dirList(file))
-		case false => doc(textEditor(file))
+		case true => doc(
+			new DirListing(file).merge(List(
+				new FileCreator(file), new FileUploader(file)
+			))
+		) 
+		case false => doc(new FileEditor(file).l)
 	}
 
 	def lPath(uri:String) = uri match {
