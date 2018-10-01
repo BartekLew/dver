@@ -166,23 +166,31 @@ class FileEditor(cwd:File) extends Iface {
 	)
 }
 
-class ReadHandler extends HttpHandler {
+class Document(ifaces : List[Iface]) extends Iface {
+	private def tags = ifaces.size match {
+		case 0 => List()
+		case _ => ifaces.head.merge(ifaces.tail)
+	}
+
 	def headCss(styles:Map[String,String]) = new Tag("head",
 		List(new Encoding("utf-8"), new CssBlock(styles))
 	)
 
-	def doc(body:List[Tag]) : String = new Tag("html",
-		List(	headCss(Map("textarea"->"width:90%;height:90%")),
-			new Tag("body", body)
-		)).toString
+	def l = List(
+		headCss(Map("textarea"->"width:90%;height:90%")),
+		new Tag("body", tags)
+	)
 
-	def fileDoc(file:File) : String = file.isDirectory match {
-		case true => doc(
-			new DirListing(file).merge(List(
-				new FileCreator(file), new FileUploader(file)
-			))
-		) 
-		case false => doc(new FileEditor(file).l)
+	def html = new Tag("html", l).toString
+}
+
+class ReadHandler extends HttpHandler {
+	def fileIfaces(file:File) : List[Iface]= file.isDirectory match {
+		case true => List(
+			new DirListing(file), new FileCreator(file),
+			new FileUploader(file)
+		)
+		case false => List(new FileEditor(file))
 	}
 
 	def lPath(uri:String) = uri match {
@@ -191,7 +199,9 @@ class ReadHandler extends HttpHandler {
 	}
 
 	def handle(t: HttpExchange) {
-		val response = fileDoc(new File(lPath(t.getRequestURI.getPath)))
+		val response = new Document(
+			fileIfaces(new File(lPath(t.getRequestURI.getPath)))
+		).html
 		t.sendResponseHeaders(200, response.length())
 		val os = t.getResponseBody
 		os.write(response.getBytes)
@@ -232,7 +242,9 @@ class DeleteHandler extends HttpHandler {
 		val target = new File(lPath(t))
 		target.delete
 
-		val response = new ReadHandler().fileDoc(target.getParentFile)
+		val response = new Document(new ReadHandler().fileIfaces(
+			new File(lPath(t)).getParentFile
+		)).html
 		t.sendResponseHeaders(200, response.length)
 		
 		val o = t.getResponseBody
