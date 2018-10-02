@@ -5,6 +5,8 @@ import java.net.InetSocketAddress
 import scala.io.Source._
 import scala.collection.immutable.Map
 
+import scala.sys.process._
+
 import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
 
 object Main {
@@ -24,19 +26,25 @@ object Main {
 	
 		val server = HttpServer.create(new InetSocketAddress(port), 0)
 		server.createContext("/r/", new UriHandler( uri => {
-			val handle = new File(uri)
+			val handle = new File( "./" + uri)
 			handle.isDirectory match {
-				case true => List(
+				case true => new Document(List(
 					new DirListing(handle),
 					new FileCreator(handle),
 					new FileUploader(handle)
-				)
-				case false => List(new FileEditor(handle))
+				)).html
+				case false => new Document(
+					List(new FileEditor(handle))
+				).html
 			}
 
 		} ))
 		server.createContext("/w/", new WriteHandler())
 		server.createContext("/d/", new DeleteHandler())
+		server.createContext("/sh/", new UriHandler( uri => uri match {
+			case "" => new Document(List(new Shell())).html
+			case _ => uri !!
+		}))
 		server.setExecutor(null)
 		server.start()
 	}
@@ -107,6 +115,11 @@ trait Iface {
 
 	def jsFun(name:String, body:String) =
 		"function " + name + "() {" + body + "}"
+
+	def jsFun(name:String, args:String, body:String) =
+		"function " + name + "(" + args + ") { " + body + "}"
+
+	def jsId(id:String) = "document.getElementById(\"" + id + "\")"
 }
 
 class DirListing(f:File) extends Iface {
@@ -125,8 +138,6 @@ class DirListing(f:File) extends Iface {
 }
 
 class FileCreator(cwd:File) extends Iface {
-	def jsId(id:String) = "document.getElementById(\"" + id + "\")"
-
 	def tags = List(
 		new Tag("input", Map("type"->"text", "id"->"newfilename")),
 		new Button("Create", "newFile()")
@@ -140,8 +151,6 @@ class FileCreator(cwd:File) extends Iface {
 }
 
 class FileUploader(cwd:File) extends Iface {
-	def jsId(id:String) = "document.getElementById(\"" + id + "\")"
-
 	def tags = List(
 		new Tag("input", Map("type"->"file", "id"->"upFile")),
 		new Button("Upload", "uploadFile()")
@@ -168,8 +177,6 @@ class FileEditor(cwd:File) extends Iface {
 			" && this.status == 200) alert(\"done!\");};" +
 		"o.send("+body+");"
 	
-	def jsId(id:String) = "document.getElementById(\"" + id + "\")"
-
 	def fileContent(f:File) = f.exists match {
 		case true => fromFile(f).mkString
 		case false => ""
@@ -187,6 +194,32 @@ class FileEditor(cwd:File) extends Iface {
 		jsHttpPost("/w/" + cwd.getPath,
 			jsId("texted") + ".value"
 		))
+}
+
+class Shell() extends Iface {
+	def js = jsFun("sh_cmd", "ev",
+		"if(ev.keyCode == 13) { " +
+			"var cmd = " + jsId("sh_in") + ".value;" +
+			"var o = new XMLHttpRequest();" +
+			"o.open(\"GET\", \"/sh/\" + cmd);" +
+			"o.onreadystatechange = function(){ " +
+				"if(this.readyState == XMLHttpRequest.DONE" +
+				" && this.status == 200) {" +
+					"var i = " + jsId("sh_in") +";" +
+					jsId("sh_out") + ".value += i.value + "+
+					"\">\\n\" + this.responseText + \"\\n\";" +
+					"i.value = \"\";}};" +
+			"o.send();" +
+		"}"
+	)
+	
+	def tags = List(
+		new Tag("input", Map(
+			"type"->"text", "id"->"sh_in",
+			 "onkeypress"->"sh_cmd(event)"
+		)),
+		new Tag("textarea", Map("id"->"sh_out"), Some(""))
+	)
 }
 
 class Document(ifaces : List[Iface]) extends Iface {
@@ -212,13 +245,11 @@ class Document(ifaces : List[Iface]) extends Iface {
 	def html = new Tag("html", tags).toString
 }
 
-class UriHandler(respond:String=>List[Iface]) extends HttpHandler {
-	def lPath(uri:String) :String = "^/\\w+/".r.replaceFirstIn(uri,"./")
+class UriHandler(respond:String=>String) extends HttpHandler {
+	def lPath(uri:String) :String = "^/\\w+/".r.replaceFirstIn(uri,"")
 
 	def handle(t: HttpExchange) {
-		val response = new Document(
-			respond(lPath(t.getRequestURI.getPath))
-		).html
+		val response = respond(lPath(t.getRequestURI.getPath))
 		t.sendResponseHeaders(200, response.length())
 		val os = t.getResponseBody
 		os.write(response.getBytes)
