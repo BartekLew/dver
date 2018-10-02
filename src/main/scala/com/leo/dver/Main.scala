@@ -9,13 +9,32 @@ import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
 
 object Main {
 
+	def fileIfaces(file:File) : List[Iface]= file.isDirectory match {
+		case true => List(
+			new DirListing(file), new FileCreator(file),
+			new FileUploader(file)
+		)
+		case false => List(new FileEditor(file))
+	}
+
 	def main(args: Array[String]) {
 		var port = 8000
 		if(args.size > 0)
 			port = args(0).toInt
 	
 		val server = HttpServer.create(new InetSocketAddress(port), 0)
-		server.createContext("/r/", new ReadHandler())
+		server.createContext("/r/", new UriHandler( uri => {
+			val handle = new File(uri)
+			handle.isDirectory match {
+				case true => List(
+					new DirListing(handle),
+					new FileCreator(handle),
+					new FileUploader(handle)
+				)
+				case false => List(new FileEditor(handle))
+			}
+
+		} ))
 		server.createContext("/w/", new WriteHandler())
 		server.createContext("/d/", new DeleteHandler())
 		server.setExecutor(null)
@@ -193,30 +212,18 @@ class Document(ifaces : List[Iface]) extends Iface {
 	def html = new Tag("html", tags).toString
 }
 
-class ReadHandler extends HttpHandler {
-	def fileIfaces(file:File) : List[Iface]= file.isDirectory match {
-		case true => List(
-			new DirListing(file), new FileCreator(file),
-			new FileUploader(file)
-		)
-		case false => List(new FileEditor(file))
-	}
-
-	def lPath(uri:String) = uri match {
-		case "/r/" => "."
-		case _ => "^/r/".r.replaceFirstIn(uri,"")
-	}
+class UriHandler(respond:String=>List[Iface]) extends HttpHandler {
+	def lPath(uri:String) :String = "^/\\w+/".r.replaceFirstIn(uri,"./")
 
 	def handle(t: HttpExchange) {
 		val response = new Document(
-			fileIfaces(new File(lPath(t.getRequestURI.getPath)))
+			respond(lPath(t.getRequestURI.getPath))
 		).html
 		t.sendResponseHeaders(200, response.length())
 		val os = t.getResponseBody
 		os.write(response.getBytes)
 		os.close()
 	}
-
 }
 
 class WriteHandler extends HttpHandler {
@@ -251,13 +258,12 @@ class DeleteHandler extends HttpHandler {
 		val target = new File(lPath(t))
 		target.delete
 
-		val response = new Document(new ReadHandler().fileIfaces(
-			new File(lPath(t)).getParentFile
-		)).html
-		t.sendResponseHeaders(200, response.length)
+		t.getResponseHeaders().add(
+			"Location", "/r/" + target.getParentFile
+		)
+		t.sendResponseHeaders(308, 0)
 		
 		val o = t.getResponseBody
-		o.write(response.getBytes);
 		o.close
 	}
 }
