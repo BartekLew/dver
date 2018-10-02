@@ -184,7 +184,8 @@ class FileEditor(cwd:File) extends Iface {
 
 	def tags = List(
 		new Tag("h3", Map(), Some("File: " + cwd.getPath)),
-		new Tag("textarea", Map("id" -> "texted"),
+		new Tag("textarea", Map("id" -> "texted",
+				"onkeypress"->"onKey(event)"),
 			Some(fileContent(cwd))),
 		new Tag("br"),
 		new Button("save", "updateFile()")
@@ -193,7 +194,15 @@ class FileEditor(cwd:File) extends Iface {
 	def js = jsFun("updateFile",
 		jsHttpPost("/w/" + cwd.getPath,
 			jsId("texted") + ".value"
-		))
+		)) + jsFun("onKey", "ev",
+			"if(ev.keyCode == 9) {" +
+				"ev.preventDefault();" +
+				"var ed = " + jsId("texted") + ";" +
+				"var pos = ed.selectionStart;" +
+				"ed.value = ed.value.substring(0, pos) + \"\\t\" + ed.value.substring(ed.selectionEnd, ed.value.length);" +
+				"ed.selectionStart = ed.selectionEnd = pos+1;" +
+			"}"
+		)
 }
 
 class Shell() extends Iface {
