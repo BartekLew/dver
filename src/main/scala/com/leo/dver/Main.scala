@@ -143,11 +143,10 @@ class FileCreator(cwd:File) extends Iface {
 		new Button("Create", "newFile()")
 	)
 
-	def js = jsFun("newFile",
-		"window.location.href=\"/r/" +
-		cwd.getPath + "/\" + " +
-		jsId("newfilename") + ".value;"
-	) 
+	def js = new JsLocation().set(
+		new Js().literal("/r/" + cwd.getPath + "/")
+			.jsId("newfilename", "value")
+	).asFun("newFile").code 
 }
 
 class FileUploader(cwd:File) extends Iface {
@@ -156,27 +155,15 @@ class FileUploader(cwd:File) extends Iface {
 		new Button("Upload", "uploadFile()")
 	)
 
-	def js = jsFun("uploadFile",
-		"var f = " + jsId("upFile") + ".files[0];" +
-		"var o = new XMLHttpRequest();" +
-		"o.open(\"POST\", \"/w/"+ cwd.getPath +"/\"+ f.name);"+
-		"o.onreadystatechange = function(){ " +
-			"if(this.readyState == XMLHttpRequest.DONE" +
-			" && this.status == 200)" +
-			" window.location.reload(false);};" +
-		"o.send(f);"
-	)
+	def js = (new JsVar("r").set(new Js().jsId("upFile", "files[0]")) +
+		new JsHttp("POST", new Js().literal("/w/" + cwd.getPath + "/")
+				.jsVar("r.name"), new Js("r"),
+				new Js("window.location.reload(false)")
+		)).asFun("uploadFile").code
+	
 }
 
 class FileEditor(cwd:File) extends Iface {
-	def jsHttpPost(uri:String, body:String) =
-		"var o = new XMLHttpRequest();" +
-		"o.open(\"POST\", \"" + uri + "\", true);" +
-		"o.onreadystatechange = function(){ " +
-			"if(this.readyState == XMLHttpRequest.DONE" +
-			" && this.status == 200) alert(\"done!\");};" +
-		"o.send("+body+");"
-	
 	def fileContent(f:File) = f.exists match {
 		case true => fromFile(f).mkString
 		case false => ""
@@ -191,37 +178,41 @@ class FileEditor(cwd:File) extends Iface {
 		new Button("save", "updateFile()")
 	)
 
-	def js = jsFun("updateFile",
-		jsHttpPost("/w/" + cwd.getPath,
-			jsId("texted") + ".value"
-		)) + jsFun("onKey", "ev",
-			"if(ev.keyCode == 9) {" +
-				"ev.preventDefault();" +
-				"var ed = " + jsId("texted") + ";" +
-				"var pos = ed.selectionStart;" +
-				"ed.value = ed.value.substring(0, pos) + \"\\t\" + ed.value.substring(ed.selectionEnd, ed.value.length);" +
-				"ed.selectionStart = ed.selectionEnd = pos+1;" +
-			"}"
-		)
+	def js = new JsHttp("POST", new Js().literal("/w/" + cwd.getPath),
+			new Js().jsId("texted", "value"),
+			new Js("alert(\"done\");")
+		).asFun("updateFile").code +
+		new Js().cond(new Js("ev.keyCode == 9"),
+			new Js().call("ev.preventDefault", List()) +
+			new JsVar("ed").set(new Js().jsId("texted")) +
+			new JsVar("pos").set(new Js("ed.selectionStart")) +
+			new Js("ed.value").set(
+				new Js("ed.value.substring(0, pos)")
+					.literal("\\t").jsVar(
+		"ed.value.substring(ed.selectionEnd, ed.value.length)"
+				)
+			) +
+			new Js("ed.selectionStart = ed.selectionnd = pos+1;")
+		).asFun("onKey", "ev").code
+
 }
 
 class Shell() extends Iface {
-	def js = jsFun("sh_cmd", "ev",
-		"if(ev.keyCode == 13) { " +
-			"var cmd = " + jsId("sh_in") + ".value;" +
-			"var o = new XMLHttpRequest();" +
-			"o.open(\"GET\", \"/sh/\" + cmd);" +
-			"o.onreadystatechange = function(){ " +
-				"if(this.readyState == XMLHttpRequest.DONE" +
-				" && this.status == 200) {" +
-					"var i = " + jsId("sh_in") +";" +
-					jsId("sh_out") + ".value += i.value + "+
-					"\">\\n\" + this.responseText + \"\\n\";" +
-					"i.value = \"\";}};" +
-			"o.send();" +
-		"}"
-	)
-	
+	def js = new Js().cond(new Js("ev.keyCode == 13"),
+		new JsVar("cmd").set(new Js().jsId("sh_in", "value")) +
+		new JsVar("out").set(new Js().jsId("sh_out")) +
+		new JsHttp("GET", new Js().literal("/sh/").jsVar("cmd"),
+			new Js(),
+			new JsVar("i").set(new Js().jsId("sh_in")) +
+			new Js("out.value").increase(
+				new Js("i.value").literal(">\\n")
+					.jsVar("this.responseText")
+					.literal("\\n")
+			) +
+			new Js("out.selectionStart = out.selectionEnd = out.value.length")
+		)
+	).asFun("sh_cmd", "ev").code
+
 	def tags = List(
 		new Tag("input", Map(
 			"type"->"text", "id"->"sh_in",
@@ -230,6 +221,67 @@ class Shell() extends Iface {
 		new Tag("textarea", Map("id"->"sh_out"), Some(""))
 	)
 }
+
+class Js(val code:String) {
+	def this() = this("")
+
+	def +(s:String) = new Js(code + s)
+	def +(js:Js) = new Js(code + js.code)
+
+	def asFun(name:String, args:String = "") = new Js(
+		"function " + name + "(" + args +") {" + code + "}"
+	)
+	
+	def set(v:Js) = new Js(code + " = " + v.code + ";")
+
+	def get(t:Js) = new Js(t.code + " = " + code + ";")
+	
+	def increase(v:Js) = new Js(code + " += " + v.code + ";")
+
+	def append(s:String) = code match {
+		case "" => new Js(s)
+		case x => new Js(x + " + " + s)
+	}
+
+	def literal(s:String) : Js = append("\"" + s + "\"")
+
+	def jsVar(s:String) = append(s)
+
+	def jsId(id:String, property:String) = append(
+		"document.getElementById(\"" + id + "\")" + "." + property
+	)
+
+	def jsId(id:String) = append(
+		"document.getElementById(\"" + id + "\")"
+	)
+
+	private def argList(args:List[Js]) : String = args.length match {
+		case 0 => ""
+		case 1 => args.head.code
+		case _ => args.head.code + ", " + argList(args.tail)
+	}
+
+	def call(fun:String, args:List[Js]) = new Js(
+		code + fun + "(" + argList(args) + ");"
+	)
+
+	def cond(test:Js, action:Js) =
+		new Js(code + "if(" + test.code + ") {" + action.code + "}")
+}
+
+class JsLocation() extends Js("window.location.href")
+
+class JsVar(name:String) extends Js("var " + name)
+
+class JsHttp(method:String, url:Js, data:Js, action:Js) extends Js(
+	(new JsVar("o").set(new Js("new XMLHttpRequest()")).call(
+		"o.open", List(new Js().literal(method), url)
+	) + new Js("o.onreadystatechange").set(
+		new Js("if(this.readyState == XMLHttpRequest.DONE" +
+			" && this.status == 200) {" + action.code + "}")
+			.asFun("")
+	).call("o.send", List(data)).code).code
+)
 
 class Document(ifaces : List[Iface]) extends Iface {
 	private def getTags = ifaces.size match {
@@ -301,7 +353,7 @@ class DeleteHandler extends HttpHandler {
 		t.getResponseHeaders().add(
 			"Location", "/r/" + target.getParentFile
 		)
-		t.sendResponseHeaders(308, 0)
+		t.sendResponseHeaders(307, 0)
 		
 		val o = t.getResponseBody
 		o.close
