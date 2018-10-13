@@ -24,7 +24,7 @@ object Main {
 		if(args.size > 0)
 			port = args(0).toInt
 	
-		val server = HttpServer.create(new InetSocketAddress(port), 0)
+		val server = HttpServer.create(new InetSocketAddress(port), 8000)
 		server.createContext("/r/", new UriHandler( uri => {
 			val handle = new File( "./" + uri)
 			handle.isDirectory match {
@@ -39,6 +39,7 @@ object Main {
 			}
 
 		} ))
+		server.createContext("/R/", new DownloadHandler())
 		server.createContext("/w/", new WriteHandler())
 		server.createContext("/d/", new DeleteHandler())
 		server.createContext("/sh/", new UriHandler( uri => uri match {
@@ -123,15 +124,28 @@ trait Iface {
 }
 
 class DirListing(f:File) extends Iface {
-	def fileLink(f:File) : String =
-		new Link("/r/" + f.getPath, f.getName).toString +
+	def openLinks(f:File) : String =
+		f.isDirectory match {
+			case true => new Link(
+				"/r/" + f.getPath, f.getName
+			).toString
+
+			case false => new Link(
+				"/R/" + f.getPath, f.getName
+			).toString + " " + new Link (
+				"/r/" + f.getPath, "[edit]"
+			).toString
+		}
+
+	def fileLinks(f:File) : String =
+		openLinks(f) +
 		new StyledLink("/d/" + f.getPath,
 			"margin-left:1ex;font-size:0.8em;font-weight:bold;",
 			"x").toString
 
 	def tags = List(
 		new Tag("h3", Map(), Some("Directory: " + f.getPath)),
-		new BList(f.listFiles.toList.map(fileLink))
+		new BList(f.listFiles.toList.map(fileLinks))
 	)
 
 	def js = ""
@@ -318,6 +332,26 @@ class UriHandler(respond:String=>String) extends HttpHandler {
 	}
 }
 
+class DownloadHandler() extends HttpHandler {
+	def lPath(uri:String) :String = "^/\\w+/".r.replaceFirstIn(uri,"")
+
+	def handle(t: HttpExchange) {
+		val response = fromFile(
+			new File(lPath(t.getRequestURI.getPath))
+		).mkString
+
+		t.getResponseHeaders().set(
+			"Content-Type", "application/octet-stream"
+		)
+		t.getResponseHeaders().set(
+			"Content-Disposition", "attachment"
+		)
+
+		t.sendResponseHeaders(200, response.length())
+		val os = t.getResponseBody
+		os.write(response.getBytes)
+		os.close()
+	} } 
 class WriteHandler extends HttpHandler {
 	def lPath(t:HttpExchange) =
 		"." + "^/w".r.replaceFirstIn(t.getRequestURI.getPath,"")
