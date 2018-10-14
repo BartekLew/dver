@@ -44,7 +44,7 @@ object Main {
 		server.createContext("/d/", new DeleteHandler())
 		server.createContext("/sh/", new UriHandler( uri => uri match {
 			case "" => new Document(List(new Shell())).html
-			case _ => uri !!
+			case _ => List("/bin/sh", "-c", uri) !!
 		}))
 		server.setExecutor(null)
 		server.start()
