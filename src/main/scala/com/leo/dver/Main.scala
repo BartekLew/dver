@@ -42,13 +42,15 @@ object Main {
 		server.createContext("/R/", new DownloadHandler())
 		server.createContext("/w/", new WriteHandler())
 		server.createContext("/d/", new DeleteHandler())
-		server.createContext("/sh/", new UriHandler( uri => uri match {
-			case "" => new Document(List(new Shell())).html
-			case _ => try{
-				List("/bin/sh", "-c", uri) !!
-			} catch {
-				case e : Exception => e.toString
-			}
+		server.createContext("/sh/", new GetPostHandler( req =>
+			req.method match {
+				case "GET" =>
+					new Document(List(new Shell())).html
+				case "POST" => try{
+					List("/bin/sh", "-c", req.post) !!
+				} catch {
+					case e : Exception => e.toString + "\n"
+				}
 		}))
 		server.setExecutor(null)
 		server.start()
@@ -219,8 +221,8 @@ class Shell() extends Iface {
 	def js = new Js().cond(new Js("ev.keyCode == 13"),
 		new JsVar("cmd").set(new Js().jsId("sh_in", "value")) +
 		new JsVar("out").set(new Js().jsId("sh_out")) +
-		new JsHttp("GET", new Js().literal("/sh/").jsVar("cmd"),
-			new Js(),
+		new JsHttp("POST", new Js().literal("/sh/"),
+			new Js().jsVar("cmd"),
 			new JsVar("i").set(new Js().jsId("sh_in")) +
 			new Js("out.value").increase(
 				new Js("i.value").literal(">\\n")
@@ -329,6 +331,24 @@ class UriHandler(respond:String=>String) extends HttpHandler {
 
 	def handle(t: HttpExchange) {
 		val response = respond(lPath(t.getRequestURI.getPath))
+		t.sendResponseHeaders(200, response.length())
+		val os = t.getResponseBody
+		os.write(response.getBytes)
+		os.close()
+	}
+}
+
+class GetPostRequest(val query:String, val method:String, val post:String) {
+	def this(queryPrefix:String, t:HttpExchange) = this(
+		queryPrefix.r.replaceFirstIn(t.getRequestURI.getPath,""),
+		t.getRequestMethod(),
+		fromInputStream(t.getRequestBody()).mkString
+	)
+}
+
+class GetPostHandler(respond:GetPostRequest=>String) extends HttpHandler {
+	def handle(t: HttpExchange) {
+		val response = respond(new GetPostRequest("^/.*/", t))
 		t.sendResponseHeaders(200, response.length())
 		val os = t.getResponseBody
 		os.write(response.getBytes)
