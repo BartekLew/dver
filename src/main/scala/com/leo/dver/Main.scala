@@ -1,6 +1,6 @@
 package me.leo.dver
 
-import java.io.{InputStream, OutputStream, File, PrintWriter}
+import java.io.{FileInputStream, FileOutputStream, InputStream, OutputStream, File}
 import java.net.InetSocketAddress
 import scala.io.Source._
 import scala.collection.immutable.Map
@@ -329,11 +329,19 @@ class Document(ifaces : List[Iface]) extends Iface {
 class UriHandler(respond:String=>String) extends HttpHandler {
 	def lPath(uri:String) :String = "^/\\w+/".r.replaceFirstIn(uri,"")
 
+	def get(t:HttpExchange) = try{
+			respond(lPath(t.getRequestURI.getPath))
+		} catch {
+			case e:Exception => e.toString + "\n"
+		}
+	
+
+
 	def handle(t: HttpExchange) {
-		val response = respond(lPath(t.getRequestURI.getPath))
-		t.sendResponseHeaders(200, response.length())
+		val response = get(t).getBytes
+ 		t.sendResponseHeaders(200, response.length)
 		val os = t.getResponseBody
-		os.write(response.getBytes)
+		os.write(response)
 		os.close()
 	}
 }
@@ -360,9 +368,8 @@ class DownloadHandler() extends HttpHandler {
 	def lPath(uri:String) :String = "^/\\w+/".r.replaceFirstIn(uri,"")
 
 	def handle(t: HttpExchange) {
-		val response = fromFile(
-			new File(lPath(t.getRequestURI.getPath))
-		).mkString
+		val f = new File(lPath(t.getRequestURI.getPath))
+		val in = new FileInputStream(f)
 
 		t.getResponseHeaders().set(
 			"Content-Type", "application/octet-stream"
@@ -371,9 +378,12 @@ class DownloadHandler() extends HttpHandler {
 			"Content-Disposition", "attachment"
 		)
 
-		t.sendResponseHeaders(200, response.length())
+		t.sendResponseHeaders(200, f.length())
+
 		val os = t.getResponseBody
-		os.write(response.getBytes)
+		Iterator.continually(in.read)
+			.takeWhile(-1 !=)
+			.foreach(os.write)
 		os.close()
 	} } 
 class WriteHandler extends HttpHandler {
@@ -382,7 +392,7 @@ class WriteHandler extends HttpHandler {
 
 	def handle(t:HttpExchange) {
 		{
-			val o = new PrintWriter(lPath(t))
+			val o = new FileOutputStream(lPath(t))
 			val i = t.getRequestBody
 
 			Iterator.continually(i.read)
