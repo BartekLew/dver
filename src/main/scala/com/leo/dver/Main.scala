@@ -185,7 +185,7 @@ class FileUploader(cwd:File) extends Iface {
 
 class FileEditor(cwd:File) extends Iface {
 	def fileContent(f:File) = f.exists match {
-		case true => fromFile(f).mkString
+		case true => fromFile(f, "utf-8").mkString
 		case false => ""
 	}
 
@@ -310,6 +310,10 @@ class Document(ifaces : List[Iface]) extends Iface {
 	}
 
 	def headCss(styles:Map[String,String]) = new Tag("head",
+                /* FIXME: if system locale is not UTF-8, fromFile() will
+                 * convert content to encoding specified in locale.
+                 * That's why set it to UTF-8 or expect garbage in text
+                 * file editor. :( */
 		List(new Encoding("utf-8"), new CssBlock(styles),
 			new Tag("script", js))
 	)
@@ -332,7 +336,10 @@ class UriHandler(respond:String=>String) extends HttpHandler {
 	def get(t:HttpExchange) = try{
 			respond(lPath(t.getRequestURI.getPath))
 		} catch {
-			case e:Exception => e.toString + "\n"
+			case e:Exception => e.toString() + "\n Caused by:\n" +
+                            e.getStackTrace().foldLeft(""){
+                              (total,element) => total + element.toString +"\n"
+                            }+ "\n"
 		}
 	
 
