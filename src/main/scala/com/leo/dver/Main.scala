@@ -212,7 +212,7 @@ class FileEditor(cwd:File) extends Iface {
 		"ed.value.substring(ed.selectionEnd, ed.value.length)"
 				)
 			) +
-			new Js("ed.selectionStart = ed.selectionnd = pos+1;")
+			new Js("ed.selectionStart = ed.selectionEnd = pos+1;")
 		).asFun("onKey", "ev").code
 
 }
@@ -373,7 +373,7 @@ class GetPostHandler(respond:GetPostRequest=>String) extends HttpHandler {
 
 class DownloadHandler() extends HttpHandler {
 	def lPath(uri:String) :String = "^/\\w+/".r.replaceFirstIn(uri,"")
-
+	
 	def handle(t: HttpExchange) {
 		val f = new File(lPath(t.getRequestURI.getPath))
 		val in = new FileInputStream(f)
@@ -392,7 +392,9 @@ class DownloadHandler() extends HttpHandler {
 			.takeWhile(-1 !=)
 			.foreach(os.write)
 		os.close()
-	} } 
+	}
+}
+ 
 class WriteHandler extends HttpHandler {
 	def lPath(t:HttpExchange) =
 		"." + "^/w".r.replaceFirstIn(t.getRequestURI.getPath,"")
