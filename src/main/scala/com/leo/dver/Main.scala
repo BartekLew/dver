@@ -371,19 +371,32 @@ class GetPostHandler(respond:GetPostRequest=>String) extends HttpHandler {
 	}
 }
 
+class FSItem(path:String) {
+	def this(f:File) = this(f.getPath)
+
+	def mime = "^.*\\.".r.replaceFirstIn(path,"") match {
+		case "pdf" => "application/pdf"
+		case _ => "application/octet-stream"
+	}
+}
+
 class DownloadHandler() extends HttpHandler {
 	def lPath(uri:String) :String = "^/\\w+/".r.replaceFirstIn(uri,"")
 	
 	def handle(t: HttpExchange) {
 		val f = new File(lPath(t.getRequestURI.getPath))
 		val in = new FileInputStream(f)
+		val mime = new FSItem(f).mime
 
 		t.getResponseHeaders().set(
-			"Content-Type", "application/octet-stream"
+			"Content-Type", mime
 		)
-		t.getResponseHeaders().set(
-			"Content-Disposition", "attachment"
-		)
+
+		if(mime == "application/octet-stream") {
+			t.getResponseHeaders().set(
+				"Content-Disposition", "attachment"
+			)
+		}
 
 		t.sendResponseHeaders(200, f.length())
 
