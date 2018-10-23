@@ -31,6 +31,11 @@ object Main {
 			)
 		}
 
+	def shCmd(cmd:String, cwd:String) = cwd match {
+		case "" => cmd
+		case _ => "cd " + cwd + "&&" + cmd
+	}
+
 	def main(args: Array[String]) {
 		var port = 8000
 		if(args.size > 0)
@@ -53,13 +58,10 @@ object Main {
 		server.createContext("/sh/", new GetPostHandler( req =>
 			req.method match {
 				case "GET" =>
-					new Document(List(new Shell())).html
-				case "POST" => try{
-					List("/bin/sh", "-c", req.post) !!
-				} catch {
-					case e : Exception => new StackTrace(e).toString
-				}
-		}))
+					new Document(List(new Shell(req.query))).html
+				case "POST" =>
+					List("/bin/sh", "-c", shCmd(req.post, req.query)) !!
+			}))
 		server.setExecutor(
 			java.util.concurrent.Executors.newCachedThreadPool()
 		)
@@ -235,11 +237,11 @@ class FileEditor(cwd:File) extends Iface {
 
 }
 
-class Shell() extends Iface {
+class Shell(path:String) extends Iface {
 	def js = new Js().cond(new Js("ev.keyCode == 13"),
 		new JsVar("cmd").set(new Js().jsId("sh_in", "value")) +
 		new JsVar("out").set(new Js().jsId("sh_out")) +
-		new JsHttp("POST", new Js().literal("/sh/"),
+		new JsHttp("POST", new Js().literal("/sh/" + path),
 			new Js().jsVar("cmd"),
 			new JsVar("i").set(new Js().jsId("sh_in")) +
 			new Js("out.value").increase(
