@@ -378,6 +378,7 @@ class FSItem(path:String) {
 
 	def mime = "^.*\\.".r.replaceFirstIn(path,"") match {
 		case "pdf" => "application/pdf"
+		case "jpg" => "image/jpeg"
 		case _ => "application/octet-stream"
 	}
 }
