@@ -19,6 +19,18 @@ object Main {
 		case false => List(new FileEditor(file))
 	}
 
+	def dirContent(f:File) =
+		new File(f.getPath + "/.content.sh").exists match{
+			case false => List(
+				new DirListing(f),
+				new FileCreator(f),
+				new FileUploader(f)
+			)
+			case true => List(
+				new ScriptResult(f.getPath + "/.content.sh")
+			)
+		}
+
 	def main(args: Array[String]) {
 		var port = 8000
 		if(args.size > 0)
@@ -28,11 +40,7 @@ object Main {
 		server.createContext("/r/", new UriHandler( uri => {
 			val handle = new File( "./" + uri)
 			handle.isDirectory match {
-				case true => new Document(List(
-					new DirListing(handle),
-					new FileCreator(handle),
-					new FileUploader(handle)
-				)).html
+				case true => new Document(dirContent(handle)).html
 				case false => new Document(
 					List(new FileEditor(handle))
 				).html
@@ -131,6 +139,14 @@ trait Iface {
 	def jsId(id:String) = "document.getElementById(\"" + id + "\")"
 }
 
+class ScriptResult(path:String) extends Iface {
+	def tags : List[Tag] = List(
+		new Tag("div", Map(), Some(path!!))
+	)
+
+	def js = ""
+}
+ 
 class DirListing(f:File) extends Iface {
 	def openLinks(f:File) : String =
 		f.isDirectory match {
