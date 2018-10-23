@@ -57,7 +57,7 @@ object Main {
 				case "POST" => try{
 					List("/bin/sh", "-c", req.post) !!
 				} catch {
-					case e : Exception => e.toString + "\n"
+					case e : Exception => new StackTrace(e).toString
 				}
 		}))
 		server.setExecutor(
@@ -348,16 +348,20 @@ class Document(ifaces : List[Iface]) extends Iface {
 	def html = new Tag("html", tags).toString
 }
 
+class StackTrace(e:Exception) {
+	override def toString() =  e.toString() + "\n Caused by:\n" +
+		e.getStackTrace().foldLeft(""){
+			(total,element) => total + element.toString +"\n"
+		}+ "\n"
+}
+
 class UriHandler(respond:String=>String) extends HttpHandler {
 	def lPath(uri:String) :String = "^/\\w+/".r.replaceFirstIn(uri,"")
 
 	def get(t:HttpExchange) = try{
 			respond(lPath(t.getRequestURI.getPath))
 		} catch {
-			case e:Exception => e.toString() + "\n Caused by:\n" +
-                            e.getStackTrace().foldLeft(""){
-                              (total,element) => total + element.toString +"\n"
-                            }+ "\n"
+			case e:Exception => new StackTrace(e).toString()
 		}
 	
 
@@ -380,8 +384,14 @@ class GetPostRequest(val query:String, val method:String, val post:String) {
 }
 
 class GetPostHandler(respond:GetPostRequest=>String) extends HttpHandler {
+	def responseFor(req:GetPostRequest) = try {
+		respond(req)
+	} catch {
+		case e:Exception => new StackTrace(e).toString
+	}
+
 	def handle(t: HttpExchange) {
-		val response = respond(new GetPostRequest("^/.*/", t))
+		val response = responseFor(new GetPostRequest("^/.*/", t))
 		t.sendResponseHeaders(200, response.length())
 		val os = t.getResponseBody
 		os.write(response.getBytes)
