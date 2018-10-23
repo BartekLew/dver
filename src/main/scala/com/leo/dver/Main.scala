@@ -52,7 +52,9 @@ object Main {
 					case e : Exception => e.toString + "\n"
 				}
 		}))
-		server.setExecutor(null)
+		server.setExecutor(
+			java.util.concurrent.Executors.newCachedThreadPool()
+		)
 		server.start()
 	}
 
