@@ -375,7 +375,7 @@ class GetPostRequest(val query:String, val method:String, val post:String) {
 	def this(queryPrefix:String, t:HttpExchange) = this(
 		queryPrefix.r.replaceFirstIn(t.getRequestURI.getPath,""),
 		t.getRequestMethod(),
-		fromInputStream(t.getRequestBody()).mkString
+		fromInputStream(t.getRequestBody(), "utf-8").mkString
 	)
 }
 
