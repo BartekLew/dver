@@ -339,7 +339,7 @@ class Document(ifaces : List[Iface]) extends Iface {
 	)
 
 	def tags = List(
-		headCss(Map("textarea"->"width:90%;height:90%")),
+		headCss(Map("textarea"->"width:90%;height:90%","#sh_in"->"width:90%")),
 		new Tag("body", getTags)
 	)
 
