@@ -47,7 +47,7 @@ object Main {
 			handle.isDirectory match {
 				case true => new Document(dirContent(handle)).html
 				case false => new Document(
-					List(new FileEditor(handle))
+					List(new FileEditor(handle), new Shell(handle.getParent))
 				).html
 			}
 
@@ -210,7 +210,9 @@ class FileEditor(cwd:File) extends Iface {
 	}
 
 	def tags = List(
-		new Tag("h3", Map(), Some("File: " + cwd.getPath)),
+		new Tag("h3", Map(), Some("File: " + cwd.getPath + " " +
+			new Tag("a", Map("href" -> ("/r/" + cwd.getParent)), Some("(parent directory)")).toString
+		)),
 		new Tag("textarea", Map("id" -> "texted",
 				"onkeypress"->"onKey(event)"),
 			Some(fileContent(cwd))),
