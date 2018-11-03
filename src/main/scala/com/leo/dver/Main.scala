@@ -397,10 +397,10 @@ class GetPostHandler(respond:GetPostRequest=>String) extends HttpHandler {
 	}
 
 	def handle(t: HttpExchange) {
-		val response = responseFor(new GetPostRequest("^/.*/", t))
-		t.sendResponseHeaders(200, response.length())
+		val response = responseFor(new GetPostRequest("^/.*/", t)).getBytes
+		t.sendResponseHeaders(200, response.length)
 		val os = t.getResponseBody
-		os.write(response.getBytes)
+		os.write(response)
 		os.close()
 	}
 }
