@@ -342,8 +342,8 @@ class Document(ifaces : List[Iface]) extends Iface {
 
 	def tags = List(
 		headCss(Map(
-			"textarea"->"width:90%;height:90%",
-			"#sh_in"->"width:90%",
+			"textarea"->"width:60em;height:90%",
+			"#sh_in"->"width:60em",
 			"body,textarea,input"->"background-color:black; color:white;",
 			"a"->"color:yellow")),
 		new Tag("body", getTags)
