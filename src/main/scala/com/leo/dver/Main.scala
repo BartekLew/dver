@@ -339,7 +339,11 @@ class Document(ifaces : List[Iface]) extends Iface {
 	)
 
 	def tags = List(
-		headCss(Map("textarea"->"width:90%;height:90%","#sh_in"->"width:90%")),
+		headCss(Map(
+			"textarea"->"width:90%;height:90%",
+			"#sh_in"->"width:90%",
+			"body,textarea,input"->"background-color:black; color:white;",
+			"a"->"color:yellow")),
 		new Tag("body", getTags)
 	)
 
@@ -406,7 +410,10 @@ class FSItem(path:String) {
 
 	def mime = "^.*\\.".r.replaceFirstIn(path,"") match {
 		case "pdf" => "application/pdf"
+		case "txt" => "text/plain"
+		case "html" => "text/html"
 		case "jpg" => "image/jpeg"
+		case "css" => "text/css"
 		case _ => "application/octet-stream"
 	}
 }
