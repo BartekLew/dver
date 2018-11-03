@@ -205,7 +205,7 @@ class FileUploader(cwd:File) extends Iface {
 
 class FileEditor(cwd:File) extends Iface {
 	def fileContent(f:File) = f.exists match {
-		case true => fromFile(f, "utf-8").mkString
+		case true => xml.Utility.escape(fromFile(f, "utf-8").mkString)
 		case false => ""
 	}
 
