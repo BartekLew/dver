@@ -251,7 +251,9 @@ class Shell(path:String) extends Iface {
 					.jsVar("this.responseText")
 					.literal("\\n")
 			) +
-			new Js("out.selectionStart = out.selectionEnd = out.value.length")
+			new Js("out.selectionStart = out.selectionEnd = out.value.length;") +
+			new Js("out.scrollTop = out.scrollHeight;")+
+			new Js("i.focus();")
 		)
 	).asFun("sh_cmd", "ev").code
 
@@ -260,7 +262,7 @@ class Shell(path:String) extends Iface {
 			"type"->"text", "id"->"sh_in",
 			 "onkeypress"->"sh_cmd(event)"
 		)),
-		new Tag("textarea", Map("id"->"sh_out"), Some(""))
+		new Tag("textarea disabled", Map("id"->"sh_out"), Some(""))
 	)
 }
 
