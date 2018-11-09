@@ -24,7 +24,8 @@ object Main {
 			case false => List(
 				new DirListing(f),
 				new FileCreator(f),
-				new FileUploader(f)
+				new FileUploader(f),
+				new Shell(f.getPath)
 			)
 			case true => List(
 				new ScriptResult(f.getPath + "/.content.sh")
@@ -163,6 +164,11 @@ class DirListing(f:File) extends Iface {
 			).toString
 		}
 
+	def listing(f:File) : List[File] = f.getPath match {
+		case "/" | "." => f.listFiles.toList
+		case _ => List(new File(f.getPath+"/..")) ++ f.listFiles.toList
+	}
+
 	def fileLinks(f:File) : String =
 		openLinks(f) +
 		new StyledLink("/d/" + f.getPath,
@@ -171,7 +177,7 @@ class DirListing(f:File) extends Iface {
 
 	def tags = List(
 		new Tag("h3", Map(), Some("Directory: " + f.getPath)),
-		new BList(f.listFiles.toList.map(fileLinks))
+		new BList(listing(f).map(fileLinks))
 	)
 
 	def js = ""
