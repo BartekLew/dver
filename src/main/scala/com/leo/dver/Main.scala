@@ -10,7 +10,6 @@ import scala.sys.process._
 import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
 
 object Main {
-
 	def fileIfaces(file:File) : List[Iface]= file.isDirectory match {
 		case true => List(
 			new DirListing(file), new FileCreator(file),
@@ -32,9 +31,30 @@ object Main {
 			)
 		}
 
-	def shCmd(cmd:String, cwd:String) = cwd match {
-		case "" => cmd
-		case _ => "cd " + cwd + "&&" + cmd
+	def shCmd(cmd:String, cwd:String) : String = {
+		val pwd = cwd
+
+		/* box is a utility allowing to run a program redirecting all
+		   streams to FS nodes. If it doesn't exist, named pipe is used.
+		   I want regular files so that I can load whole output/error
+		   history anytime. That's I create files for output and error
+		   streams. More info:
+
+		   https://github.com/BartekLew/box/blob/master/box.c
+		*/
+		if(new File(pwd + "/box.out").exists == false) {
+			new File(cwd + "/box.out").createNewFile()
+			new File(cwd + "/box.err").createNewFile()
+			Process("box sh", new File(pwd)).!!
+		}
+
+		val o = new FileOutputStream(pwd + "/box.in")
+		o.write(("echo $PWD'> '" + cmd + "\n").getBytes)
+		o.write((cmd + "\n").getBytes)
+		o.write("echo\n".getBytes)
+		o.close
+
+		return "<resp>ok</resp>"
 	}
 
 	def main(args: Array[String]) {
@@ -60,8 +80,7 @@ object Main {
 			req.method match {
 				case "GET" =>
 					new Document(List(new Shell(req.query))).html
-				case "POST" =>
-					List("/bin/sh", "-c", shCmd(req.post, req.query)) !!
+				case "POST" => shCmd(req.post, "./" + req.query)
 			}))
 		server.setExecutor(
 			java.util.concurrent.Executors.newCachedThreadPool()
@@ -140,6 +159,11 @@ trait Iface {
 		"function " + name + "(" + args + ") { " + body + "}"
 
 	def jsId(id:String) = "document.getElementById(\"" + id + "\")"
+
+	def fileContent(f:File) = f.exists match {
+		case true => xml.Utility.escape(fromFile(f, "utf-8").mkString)
+		case false => ""
+	}
 }
 
 class ScriptResult(path:String) extends Iface {
@@ -210,11 +234,6 @@ class FileUploader(cwd:File) extends Iface {
 }
 
 class FileEditor(cwd:File) extends Iface {
-	def fileContent(f:File) = f.exists match {
-		case true => xml.Utility.escape(fromFile(f, "utf-8").mkString)
-		case false => ""
-	}
-
 	def tags = List(
 		new Tag("h3", Map(), Some("File: " + cwd.getPath + " " +
 			new Tag("a", Map("href" -> ("/r/" + cwd.getParent)), Some("(parent directory)")).toString
@@ -246,29 +265,35 @@ class FileEditor(cwd:File) extends Iface {
 }
 
 class Shell(path:String) extends Iface {
-	def js = new Js().cond(new Js("ev.keyCode == 13"),
-		new JsVar("cmd").set(new Js().jsId("sh_in", "value")) +
-		new JsVar("out").set(new Js().jsId("sh_out")) +
-		new JsHttp("POST", new Js().literal("/sh/" + path),
-			new Js().jsVar("cmd"),
-			new JsVar("i").set(new Js().jsId("sh_in")) +
-			new Js("out.value").increase(
-				new Js("i.value").literal(">\\n")
-					.jsVar("this.responseText")
-					.literal("\\n")
+	def js = (new JsHttp("GET",
+			new Js().literal("/R/" + path + "/box.out"),
+			new Js(),
+			new JsVar("o").set(new Js().jsId("sh_out")) +
+			new Js().jsVar("o.value").set(
+				new Js().jsVar("this.responseText")
 			) +
-			new Js("out.selectionStart = out.selectionEnd = out.value.length;") +
-			new Js("out.scrollTop = out.scrollHeight;")+
-			new Js("i.focus();")
-		)
-	).asFun("sh_cmd", "ev").code
+			new Js().jsVar("o.scrollTop").set(
+				new Js().jsVar("o.scrollHeight")
+			)
+		).asFun("refresh_output") +
+		new Js().cond(new Js("ev.keyCode == 13"),
+			new JsVar("cmd").set(new Js().jsId("sh_in", "value")) +
+			new JsVar("out").set(new Js().jsId("sh_out")) +
+			new Js("refresh_output();") +
+			new JsHttp("POST", new Js().literal("/sh/" + path),
+				new Js().jsVar("cmd"),
+				new Js("setInterval(refresh_output, 2000);")
+		)).asFun("sh_cmd", "ev")).code
 
 	def tags = List(
+		new Tag("h4", Map(), Some("shell:")),
 		new Tag("input", Map(
 			"type"->"text", "id"->"sh_in",
 			 "onkeypress"->"sh_cmd(event)"
 		)),
-		new Tag("textarea disabled", Map("id"->"sh_out"), Some(""))
+		new Tag("textarea disabled", Map("id"->"sh_out"),
+			Some(fileContent(new File(path + "/box.out")))
+		)
 	)
 }
 
