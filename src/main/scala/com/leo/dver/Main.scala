@@ -293,7 +293,11 @@ class Shell(path:String) extends Iface {
 		)),
 		new Tag("textarea disabled", Map("id"->"sh_out"),
 			Some(fileContent(new File(path + "/box.out")))
-		)
+		),
+		new Tag("script", Map(), Some(
+			(new JsVar("o").set(new Js().jsId("sh_out"))+
+			new Js("o.scrollTop = o.scrollHeight;")).code
+		))
 	)
 }
 
