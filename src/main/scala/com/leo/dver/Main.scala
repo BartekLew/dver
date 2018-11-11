@@ -49,7 +49,7 @@ object Main {
 		}
 
 		val o = new FileOutputStream(pwd + "/box.in")
-		o.write(("echo $PWD'> '" + cmd + "\n").getBytes)
+		o.write(("echo $PWD'> " + cmd + "'\n").getBytes)
 		o.write((cmd + "\n").getBytes)
 		o.write("echo\n".getBytes)
 		o.close
@@ -265,7 +265,7 @@ class FileEditor(cwd:File) extends Iface {
 }
 
 class Shell(path:String) extends Iface {
-	def js = (new JsHttp("GET",
+	def js = ((new JsHttp("GET",
 			new Js().literal("/R/" + path + "/box.out"),
 			new Js(),
 			new JsVar("o").set(new Js().jsId("sh_out")) +
@@ -277,7 +277,19 @@ class Shell(path:String) extends Iface {
 					new Js().jsVar("o.scrollHeight")
 				)
 			)
-		).asFun("refresh_output") +
+		)+new JsHttp("GET",
+			new Js().literal("/R/" + path + "/box.err"),
+			new Js(),
+			new JsVar("e").set(new Js().jsId("sh_err")) +
+			new Js().cond(new Js("this.responseText.length != e.value.length"),
+				new Js().jsVar("e.value").set(
+					new Js().jsVar("this.responseText")
+				) +
+				new Js().jsVar("e.scrollTop").set(
+					new Js().jsVar("e.scrollHeight")
+				)
+			)
+		)).asFun("refresh_output") +
 		new Js().cond(new Js("ev.keyCode == 13"),
 			new JsVar("cmd").set(new Js().jsId("sh_in", "value")) +
 			new JsVar("out").set(new Js().jsId("sh_out")) +
@@ -296,9 +308,14 @@ class Shell(path:String) extends Iface {
 		new Tag("textarea disabled", Map("id"->"sh_out"),
 			Some(fileContent(new File(path + "/box.out")))
 		),
+		new Tag("textarea disabled", Map("id"->"sh_err"),
+			Some(fileContent(new File(path + "/box.err")))
+		),
 		new Tag("script", Map(), Some(
 			(new JsVar("o").set(new Js().jsId("sh_out"))+
-			new Js("o.scrollTop = o.scrollHeight;")).code
+			new Js("o.scrollTop = o.scrollHeight;") +
+			new JsVar("e").set(new Js().jsId("sh_err"))+
+			new Js("e.scrollTop = e.scrollHeight;")).code
 		))
 	)
 }
@@ -383,6 +400,7 @@ class Document(ifaces : List[Iface]) extends Iface {
 		headCss(Map(
 			"textarea"->"width:60em;height:90%",
 			"#sh_in"->"width:60em",
+			"#sh_out, #sh_err"->"height:10em",
 			"body,textarea,input"->"background-color:black; color:white;",
 			"a"->"color:yellow")),
 		new Tag("body", getTags)
