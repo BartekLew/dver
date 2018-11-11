@@ -305,10 +305,10 @@ class Shell(path:String) extends Iface {
 			"type"->"text", "id"->"sh_in",
 			 "onkeypress"->"sh_cmd(event)"
 		)),
-		new Tag("textarea disabled", Map("id"->"sh_out"),
+		new Tag("textarea readonly", Map("id"->"sh_out"),
 			Some(fileContent(new File(path + "/box.out")))
 		),
-		new Tag("textarea disabled", Map("id"->"sh_err"),
+		new Tag("textarea readonly", Map("id"->"sh_err"),
 			Some(fileContent(new File(path + "/box.err")))
 		),
 		new Tag("script", Map(), Some(
