@@ -79,7 +79,7 @@ object Main {
 		server.createContext("/sh/", new GetPostHandler( req =>
 			req.method match {
 				case "GET" =>
-					new Document(List(new Shell(req.query))).html
+					throw new Exception("Illegal method: GET")
 				case "POST" => shCmd(req.post, "./" + req.query)
 			}))
 		server.setExecutor(
