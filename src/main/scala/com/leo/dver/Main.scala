@@ -269,11 +269,13 @@ class Shell(path:String) extends Iface {
 			new Js().literal("/R/" + path + "/box.out"),
 			new Js(),
 			new JsVar("o").set(new Js().jsId("sh_out")) +
-			new Js().jsVar("o.value").set(
-				new Js().jsVar("this.responseText")
-			) +
-			new Js().jsVar("o.scrollTop").set(
-				new Js().jsVar("o.scrollHeight")
+			new Js().cond(new Js("this.responseText.length != o.value.length"),
+				new Js().jsVar("o.value").set(
+					new Js().jsVar("this.responseText")
+				) +
+				new Js().jsVar("o.scrollTop").set(
+					new Js().jsVar("o.scrollHeight")
+				)
 			)
 		).asFun("refresh_output") +
 		new Js().cond(new Js("ev.keyCode == 13"),
