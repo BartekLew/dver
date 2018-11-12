@@ -189,8 +189,8 @@ class DirListing(f:File) extends Iface {
 		}
 
 	def listing(f:File) : List[File] = f.getPath match {
-		case "/" | "." => f.listFiles.toList
-		case _ => List(new File(f.getPath+"/..")) ++ f.listFiles.toList
+		case "/" | "." => f.listFiles.toList.sorted
+		case _ => List(new File(f.getPath+"/..")) ++ f.listFiles.toList.sorted
 	}
 
 	def fileLinks(f:File) : String =
