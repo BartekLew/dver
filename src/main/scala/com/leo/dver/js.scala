@@ -45,11 +45,17 @@ class Js(val code:String) {
 
 	def cond(test:Js, action:Js) =
 		new Js(code + "if(" + test.code + ") {" + action.code + "}")
+
+	def ->(prop:String) = new Js(code + "." + prop)
 }
 
 class JsLocation() extends Js("window.location.href")
 
 class JsVar(name:String) extends Js("var " + name)
+
+class JsId(name:String) extends Js("document.getElementById(\"" + name + "\")")
+
+class JsLiteral(v:String) extends Js("\"" + v + "\"")
 
 class JsHttp(method:String, url:Js, data:Js, action:Js) extends Js(
 	(new JsVar("o").set(new Js("new XMLHttpRequest()")).call(

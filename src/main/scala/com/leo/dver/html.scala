@@ -140,7 +140,7 @@ class FileUploader(cwd:File) extends Iface {
 		new Button("Upload", "uploadFile()")
 	)
 
-	def js = (new JsVar("r").set(new Js().jsId("upFile", "files[0]")) +
+	def js = (new JsVar("r").set(new JsId("upFile")->"files[0]") +
 		new JsHttp("POST", new Js().literal("/w/" + cwd.getPath + "/")
 				.jsVar("r.name"), new Js("r"),
 				new Js("window.location.reload(false)")
@@ -161,12 +161,12 @@ class FileEditor(cwd:File) extends Iface {
 	)
 
 	def js = new JsHttp("POST", new Js().literal("/w/" + cwd.getPath),
-			new Js().jsId("texted", "value"),
+			new JsId("texted")->"value",
 			new Js("alert(\"done\");")
 		).asFun("updateFile").code +
 		new Js().cond(new Js("ev.keyCode == 9"),
 			new Js().call("ev.preventDefault", List()) +
-			new JsVar("ed").set(new Js().jsId("texted")) +
+			new JsVar("ed").set(new JsId("texted")) +
 			new JsVar("pos").set(new Js("ed.selectionStart")) +
 			new Js("ed.value").set(
 				new Js("ed.value.substring(0, pos)")
@@ -180,59 +180,39 @@ class FileEditor(cwd:File) extends Iface {
 }
 
 class Shell(path:String) extends Iface {
-	def js = ((new JsHttp("GET",
-			new Js().literal("/R/" + path + "/box.out"),
+	def js = List("out", "err").map( stream => 
+		new JsHttp("GET", new Js().literal("/R/" + path + "/box." + stream),
 			new Js(),
-			new JsVar("o").set(new Js().jsId("sh_out")) +
+			new JsVar("o").set(new JsId("sh_" + stream)) +
 			new Js().cond(new Js("this.responseText.length != o.value.length"),
-				new Js().jsVar("o.value").set(
-					new Js().jsVar("this.responseText")
-				) +
-				new Js().jsVar("o.scrollTop").set(
-					new Js().jsVar("o.scrollHeight")
-				)
+				new Js("o.value = this.responseText;") +
+				new Js("o.scrollTop = o.scrollHeight")
 			)
-		)+new JsHttp("GET",
-			new Js().literal("/R/" + path + "/box.err"),
-			new Js(),
-			new JsVar("e").set(new Js().jsId("sh_err")) +
-			new Js().cond(new Js("this.responseText.length != e.value.length"),
-				new Js().jsVar("e.value").set(
-					new Js().jsVar("this.responseText")
-				) +
-				new Js().jsVar("e.scrollTop").set(
-					new Js().jsVar("e.scrollHeight")
-				)
-			)
-		)).asFun("refresh_output") +
+		)).foldLeft(new Js()) ((a,b) => a+b).asFun("refresh_output").code +
 		new Js().cond(new Js("ev.keyCode == 13"),
-			new JsVar("cmd").set(new Js().jsId("sh_in", "value")) +
-			new JsVar("out").set(new Js().jsId("sh_out")) +
+			new JsVar("cmd").set(new JsId("sh_in")->"value") +
+			new JsVar("out").set(new JsId("sh_out")) +
 			new Js("refresh_output();") +
 			new JsHttp("POST", new Js().literal("/sh/" + path),
 				new Js().jsVar("cmd"),
 				new Js("setInterval(refresh_output, 2000);")
-		)).asFun("sh_cmd", "ev")).code
+		)).asFun("sh_cmd", "ev").code
 
 	def tags = List(
 		new Tag("h4", Map(), Some("shell:")),
 		new Tag("input", Map(
 			"type"->"text", "id"->"sh_in",
 			 "onkeypress"->"sh_cmd(event)"
-		)),
-		new Tag("textarea readonly", Map("id"->"sh_out"),
-			Some(fileContent(new File(path + "/box.out")))
-		),
-		new Tag("textarea readonly", Map("id"->"sh_err"),
-			Some(fileContent(new File(path + "/box.err")))
+		))
+	) ++ (List("out", "err").map( stream => List(
+		new Tag("textarea readonly", Map("id"->("sh_" + stream)),
+			Some(fileContent(new File(path + "/box." + stream)))
 		),
 		new Tag("script", Map(), Some(
-			(new JsVar("o").set(new Js().jsId("sh_out"))+
-			new Js("o.scrollTop = o.scrollHeight;") +
-			new JsVar("e").set(new Js().jsId("sh_err"))+
-			new Js("e.scrollTop = e.scrollHeight;")).code
+			(new JsVar("o").set(new JsId("sh_" + stream)) +
+			new Js("o.scrollTop = o.scrollHeight;")).code
 		))
-	)
+	)).foldLeft(List[Tag]()) ((a,b)=>a++b))
 }
 
 class Document(ifaces : List[Iface]) extends Iface {
