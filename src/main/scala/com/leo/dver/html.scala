@@ -190,12 +190,13 @@ class Shell(path:String) extends Iface {
 			)
 		)).foldLeft(new Js()) ((a,b) => a+b).asFun("refresh_output").code +
 		new Js().cond(new Js("ev.keyCode == 13"),
-			new JsVar("cmd").set(new JsId("sh_in")->"value") +
+			new JsVar("cmd").set(new JsId("sh_in")) +
 			new JsVar("out").set(new JsId("sh_out")) +
 			new Js("refresh_output();") +
 			new JsHttp("POST", new Js().literal("/sh/" + path),
-				new Js().jsVar("cmd"),
-				new Js("setInterval(refresh_output, 2000);")
+				new Js().jsVar("cmd.value"),
+				new Js("setInterval(refresh_output, 2000);") +
+				new Js("cmd.value").set(new JsLiteral(""))
 		)).asFun("sh_cmd", "ev").code
 
 	def tags = List(
