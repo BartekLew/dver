@@ -193,18 +193,28 @@ class Shell(path:String) extends Iface {
 			new JsVar("cmd").set(new JsId("sh_in")) +
 			new JsVar("out").set(new JsId("sh_out")) +
 			new Js("refresh_output();") +
-			new JsHttp("POST", new Js().literal("/sh/" + path),
+			new JsHttp("POST", new JsLiteral("/sh/" + path),
 				new Js().jsVar("cmd.value"),
 				new Js("setInterval(refresh_output, 2000);") +
 				new Js("cmd.value").set(new JsLiteral(""))
-		)).asFun("sh_cmd", "ev").code
+		)).asFun("sh_cmd", "ev").code +
+		new JsHttp("POST", new JsLiteral("/w/" + path + "/box.ctl"),
+			new JsLiteral("k"), new Js("window.location.reload(false);")
+		).asFun("sh_term").code +
+		new JsHttp("POST", new JsLiteral("/w/" + path + "/box.ctl"),
+			new JsLiteral("c"), new Js()
+		).asFun("sh_cls").code
 
 	def tags = List(
 		new Tag("h4", Map(), Some("shell:")),
 		new Tag("input", Map(
 			"type"->"text", "id"->"sh_in",
 			 "onkeypress"->"sh_cmd(event)"
-		))
+		)),
+		new Tag("br"),
+		new Button("clear", "sh_cls()"),
+		new Button("terminate", "sh_term()"),
+		new Tag("br")
 	) ++ (List("out", "err").map( stream => List(
 		new Tag("textarea readonly", Map("id"->("sh_" + stream)),
 			Some(fileContent(new File(path + "/box." + stream)))
