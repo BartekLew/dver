@@ -45,13 +45,11 @@ object Main {
 		if(new File(pwd + "/box.out").exists == false) {
 			new File(cwd + "/box.out").createNewFile()
 			new File(cwd + "/box.err").createNewFile()
-			Process("box sh", new File(pwd)).!!
+			Process("box bash -i", new File(pwd)).!!
 		}
 
 		val o = new FileOutputStream(pwd + "/box.in")
-		o.write(("echo $PWD'> " + cmd + "'\n").getBytes)
 		o.write((cmd + "\n").getBytes)
-		o.write("echo\n".getBytes)
 		o.close
 
 		return "<resp>ok</resp>"
