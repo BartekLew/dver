@@ -143,7 +143,7 @@ class FileUploader(cwd:File) extends Iface {
 	def js = (new JsVar("r").set(new JsId("upFile")->"files[0]") +
 		new JsHttp("POST", new Js().literal("/w/" + cwd.getPath + "/")
 				.jsVar("r.name"), new Js("r"),
-				new Js("window.location.reload(false)")
+				new Js("setTimeout(function(){window.location.reload(false);}, 1000);")
 		)).asFun("uploadFile").code
 	
 }
