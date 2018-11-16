@@ -10,14 +10,6 @@ import scala.sys.process._
 import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
 
 object Main {
-	def fileIfaces(file:File) : List[Iface]= file.isDirectory match {
-		case true => List(
-			new DirListing(file), new FileCreator(file),
-			new FileUploader(file)
-		)
-		case false => List(new FileEditor(file))
-	}
-
 	def dirContent(f:File) =
 		new File(f.getPath + "/.content.sh").exists match{
 			case false => List(
@@ -74,12 +66,13 @@ object Main {
 		server.createContext("/R/", new DownloadHandler())
 		server.createContext("/w/", new WriteHandler())
 		server.createContext("/d/", new DeleteHandler())
-		server.createContext("/sh/", new GetPostHandler( req =>
+		server.createContext("/img/", new ImageHandler())
+		server.createContext("/sh/", new GetPostHandler( req => new TextResponse(
 			req.method match {
 				case "GET" =>
 					throw new Exception("Illegal method: GET")
 				case "POST" => shCmd(req.post, "./" + req.query)
-			}))
+			})))
 		server.setExecutor(
 			java.util.concurrent.Executors.newCachedThreadPool()
 		)

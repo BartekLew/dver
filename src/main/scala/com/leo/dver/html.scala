@@ -148,19 +148,56 @@ class FileUploader(cwd:File) extends Iface {
 	
 }
 
-class FileEditor(cwd:File) extends Iface {
+class FileEditor(f:File) extends Iface {
+	def contentEditor : Iface = new FSItem(f).extension match {
+		case "jpg" | "png" => new ImageEditor(f)
+		case _ => new TextEditor(f)
+	}
+
 	def tags = List(
-		new Tag("h3", Map(), Some("File: " + cwd.getPath + " " +
-			new Tag("a", Map("href" -> ("/r/" + cwd.getParent)), Some("(parent directory)")).toString
-		)),
+		new Tag("h3", Map(), Some("File: " + f.getPath + " " +
+			new Tag("a", Map("href" -> ("/r/" + f.getParent)),
+				Some("(parent directory)")).toString
+	))) ++ contentEditor.tags
+
+	def js = contentEditor.js
+}
+
+class ImageEditor(f:File) extends Iface {
+	def tags = List(
+		new Tag("img", Map("src"->("/img/" + f.getPath),
+			"id"->"img_disp"), None),
+		new Tag("br"),
+		new Tag("input", Map(
+			"placeholder"->"brightness", "id"->"img_bri",
+			"onkeypress"->"img_up(event)"
+		), None),
+		new Tag("input", Map(
+			"placeholder"->"contrast", "id"->"img_contr",
+			"onkeypress"->"img_up(event)"
+		), None)
+	)
+
+	def js = new Js().cond(new Js("ev.keyCode == 13"),
+			new JsVar("bri").set(new JsId("img_bri")->"value") +
+			new JsVar("con").set(new JsId("img_contr")->"value") +
+			new JsHttp("POST", new JsLiteral("/img/" + f.getPath),
+				new JsLiteral("-brightness-contrast ").jsVar("bri")
+					.literal("x").jsVar("con"),
+				new Js("window.location.reload(false);")
+		)).asFun("img_up", "ev").code
+}
+
+class TextEditor(f:File) extends Iface {
+	def tags = List(
 		new Tag("textarea", Map("id" -> "texted",
 				"onkeypress"->"onKey(event)"),
-			Some(fileContent(cwd))),
+			Some(fileContent(f))),
 		new Tag("br"),
 		new Button("save", "updateFile()")
 	)
 
-	def js = new JsHttp("POST", new Js().literal("/w/" + cwd.getPath),
+	def js = new JsHttp("POST", new Js().literal("/w/" + f.getPath),
 			new JsId("texted")->"value",
 			new Js("alert(\"done\");")
 		).asFun("updateFile").code +
@@ -176,7 +213,6 @@ class FileEditor(cwd:File) extends Iface {
 			) +
 			new Js("ed.selectionStart = ed.selectionEnd = pos+1;")
 		).asFun("onKey", "ev").code
-
 }
 
 class Shell(path:String) extends Iface {

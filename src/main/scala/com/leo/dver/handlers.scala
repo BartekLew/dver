@@ -1,6 +1,7 @@
 package me.leo.dver
 
 import scala.io.Source._
+import sys.process._
 
 import java.io.{FileInputStream, FileOutputStream, InputStream, OutputStream, File}
 import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
@@ -41,15 +42,13 @@ class GetPostRequest(val query:String, val method:String, val post:String) {
 	)
 }
 
-class GetPostHandler(respond:GetPostRequest=>String) extends HttpHandler {
-	def responseFor(req:GetPostRequest) = try {
-		respond(req)
-	} catch {
-		case e:Exception => new StackTrace(e).toString
-	}
+trait GetPostResponse{
+	def handle(t:HttpExchange) : Unit
+}
 
-	def handle(t: HttpExchange) {
-		val response = responseFor(new GetPostRequest("^/[^/]*/", t)).getBytes
+class TextResponse(content:String) extends GetPostResponse {
+	def handle(t:HttpExchange) {
+		val response = content.getBytes
 		t.sendResponseHeaders(200, response.length)
 		val os = t.getResponseBody
 		os.write(response)
@@ -57,10 +56,48 @@ class GetPostHandler(respond:GetPostRequest=>String) extends HttpHandler {
 	}
 }
 
+class FileResponse(f:File) extends GetPostResponse {
+	def handle(t:HttpExchange) {
+		val in = new FileInputStream(f)
+		val mime = new FSItem(f).mime
+
+		t.getResponseHeaders().set(
+			"Content-Type", mime
+		)
+
+		if(mime == "application/octet-stream") {
+			t.getResponseHeaders().set(
+				"Content-Disposition", "attachment"
+			)
+		}
+
+		t.sendResponseHeaders(200, f.length())
+
+		val os = t.getResponseBody
+		Iterator.continually(in.read)
+			.takeWhile(-1 !=)
+			.foreach(os.write)
+		os.close()
+	}
+}
+
+class GetPostHandler(respond:GetPostRequest=>GetPostResponse) extends HttpHandler {
+	def responseFor(req:GetPostRequest) = try {
+		respond(req)
+	} catch {
+		case e:Exception => new TextResponse(new StackTrace(e).toString)
+	}
+
+	def handle(t: HttpExchange) {
+		 responseFor(new GetPostRequest("^/[^/]*/", t)).handle(t)
+	}
+}
+
 class FSItem(path:String) {
 	def this(f:File) = this(f.getPath)
 
-	def mime = "^.*\\.".r.replaceFirstIn(path,"") match {
+	def extension = "^.*\\.".r.replaceFirstIn(path,"")
+	def mime = extension match {
 		case "pdf" => "application/pdf"
 		case "txt" => "text/plain"
 		case "html" => "text/html"
@@ -69,6 +106,21 @@ class FSItem(path:String) {
 		case _ => "application/octet-stream"
 	}
 }
+
+class ImageOf(sourcePath:String, post:String) {
+	def asResponse() : FileResponse = {
+		val temp = sourcePath + ".dver"
+		val tempF = new File(temp)
+		if(!tempF.exists || post.length > 0){
+			val cmd = "convert " + sourcePath + " -scale 600 " + post + " " + temp
+			cmd!!
+		}
+
+		return new FileResponse(new File(temp))
+	}
+}
+
+class ImageHandler extends GetPostHandler(req => new ImageOf(req.query, req.post).asResponse)
 
 class DownloadHandler() extends HttpHandler {
 	def lPath(uri:String) :String = "^/\\w+/".r.replaceFirstIn(uri,"")
