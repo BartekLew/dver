@@ -109,14 +109,22 @@ class FSItem(path:String) {
 
 class ImageOf(sourcePath:String, post:String) {
 	def asResponse() : FileResponse = {
-		val temp = sourcePath + ".dver"
-		val tempF = new File(temp)
-		if(!tempF.exists || post.length > 0){
-			val cmd = "convert " + sourcePath + " -scale 600 " + post + " " + temp
-			cmd!!
+		val small = sourcePath + "~small"
+		val smallF = new File(small)
+		if(!smallF.exists){
+			List("convert", sourcePath, "-scale", "600", small)!!
 		}
 
-		return new FileResponse(new File(temp))
+		val out = sourcePath + "~out"
+		if(post.length > 0){
+			(List("convert", small) ++ post.split(" ") ++ List(out))!!
+		}
+		val outF = new File(out)
+		
+		return new FileResponse(outF.exists match {
+			case true => outF
+			case _ => smallF
+		})
 	}
 }
 
