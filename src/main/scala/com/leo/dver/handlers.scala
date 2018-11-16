@@ -107,33 +107,7 @@ class FSItem(path:String) {
 	}
 }
 
-class ImageOf(sourcePath:String, post:String) {
-	def asResponse() : FileResponse = {
-		val small = sourcePath + "~small"
-		val smallF = new File(small)
-		if(!smallF.exists){
-			List("convert", sourcePath, "-scale", "600", small)!!
-		}
-
-		val out = sourcePath + "~out"
-		val params = new File(sourcePath + "~params")
-		if(post.length > 0){
-			(List("convert", small) ++ post.split(" ") ++ List(out))!!
-			val os = new FileOutputStream(params)
-			os.write(post.getBytes)
-			os.close
-		}
-
-		val outF = new File(out)
-		
-		return new FileResponse(outF.exists match {
-			case true => outF
-			case _ => smallF
-		})
-	}
-}
-
-class ImageHandler extends GetPostHandler(req => new ImageOf(req.query, req.post).asResponse)
+class ImageHandler extends GetPostHandler(req => new ImageFile(req.query).transform(req.post))
 
 class DownloadHandler() extends GetPostHandler(req => new FileResponse(new File(req.query)))
 

@@ -5,6 +5,8 @@ import java.io.File
 import scala.io.Source._
 import scala.sys.process._
 
+import java.io.FileOutputStream
+
 class Tag(name:String, args:Map[String,String], value:Option[String]) {
 
 	def this(name:String) = this(name, Map(), None)
@@ -150,7 +152,7 @@ class FileUploader(cwd:File) extends Iface {
 
 class FileEditor(f:File) extends Iface {
 	def contentEditor : Iface = new FSItem(f).extension match {
-		case "jpg" | "png" => new ImageEditor(f)
+		case "jpg" | "png" => new ImageEditor(new ImageFile(f))
 		case _ => new TextEditor(f)
 	}
 
@@ -163,24 +165,18 @@ class FileEditor(f:File) extends Iface {
 	def js = contentEditor.js
 }
 
-class ImageEditor(f:File) extends Iface {
-	def settings : Array[String] = try{
-		 fromFile(f.getPath + "~params").mkString.split(" ")(1).split("x")
-	} catch {
-		case e:Exception => Array("", "")
-	} 
-
+class ImageEditor(f:ImageFile) extends Iface {
 	def tags = List(
 		new Tag("img", Map("src"->("/img/" + f.getPath),
 			"id"->"img_disp"), None),
 		new Tag("br"),
 		new Tag("input", Map(
 			"placeholder"->"brightness", "id"->"img_bri",
-			"onkeypress"->"img_up(event)", "value"->(settings(0))
+			"onkeypress"->"img_up(event)", "value"->f.brightness
 		), None),
 		new Tag("input", Map(
 			"placeholder"->"contrast", "id"->"img_contr",
-			"onkeypress"->"img_up(event)", "value"->(settings(1))
+			"onkeypress"->"img_up(event)", "value"->f.contrast
 		), None)
 	)
 
