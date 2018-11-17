@@ -164,17 +164,23 @@ class FileEditor(f:File) extends Iface {
 }
 
 class ImageEditor(f:File) extends Iface {
+	def settings : Array[String] = try{
+		 fromFile(f.getPath + "~params").mkString.split(" ")(1).split("x")
+	} catch {
+		case e:Exception => Array("", "")
+	} 
+
 	def tags = List(
 		new Tag("img", Map("src"->("/img/" + f.getPath),
 			"id"->"img_disp"), None),
 		new Tag("br"),
 		new Tag("input", Map(
 			"placeholder"->"brightness", "id"->"img_bri",
-			"onkeypress"->"img_up(event)"
+			"onkeypress"->"img_up(event)", "value"->(settings(0))
 		), None),
 		new Tag("input", Map(
 			"placeholder"->"contrast", "id"->"img_contr",
-			"onkeypress"->"img_up(event)"
+			"onkeypress"->"img_up(event)", "value"->(settings(1))
 		), None)
 	)
 

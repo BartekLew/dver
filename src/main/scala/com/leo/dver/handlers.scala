@@ -116,9 +116,14 @@ class ImageOf(sourcePath:String, post:String) {
 		}
 
 		val out = sourcePath + "~out"
+		val params = new File(sourcePath + "~params")
 		if(post.length > 0){
 			(List("convert", small) ++ post.split(" ") ++ List(out))!!
+			val os = new FileOutputStream(params)
+			os.write(post.getBytes)
+			os.close
 		}
+
 		val outF = new File(out)
 		
 		return new FileResponse(outF.exists match {
