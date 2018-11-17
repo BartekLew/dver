@@ -122,34 +122,8 @@ class ImageOf(sourcePath:String, post:String) {
 
 class ImageHandler extends GetPostHandler(req => new ImageOf(req.query, req.post).asResponse)
 
-class DownloadHandler() extends HttpHandler {
-	def lPath(uri:String) :String = "^/\\w+/".r.replaceFirstIn(uri,"")
-	
-	def handle(t: HttpExchange) {
-		val f = new File(lPath(t.getRequestURI.getPath))
-		val in = new FileInputStream(f)
-		val mime = new FSItem(f).mime
+class DownloadHandler() extends GetPostHandler(req => new FileResponse(new File(req.query)))
 
-		t.getResponseHeaders().set(
-			"Content-Type", mime
-		)
-
-		if(mime == "application/octet-stream") {
-			t.getResponseHeaders().set(
-				"Content-Disposition", "attachment"
-			)
-		}
-
-		t.sendResponseHeaders(200, f.length())
-
-		val os = t.getResponseBody
-		Iterator.continually(in.read)
-			.takeWhile(-1 !=)
-			.foreach(os.write)
-		os.close()
-	}
-}
- 
 class WriteHandler extends HttpHandler {
 	def lPath(t:HttpExchange) =
 		"." + "^/w".r.replaceFirstIn(t.getRequestURI.getPath,"")
