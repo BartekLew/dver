@@ -23,6 +23,11 @@ class Js(val code:String) {
 
 	def literal(s:String) : Js = append("\"" + s + "\"")
 
+	def separator(s:String) : Js = code.length match {
+		case 0 => this
+		case _ => literal(s)
+	}
+
 	def jsVar(s:String) = append(s)
 
 	def jsId(id:String, property:String) = append(

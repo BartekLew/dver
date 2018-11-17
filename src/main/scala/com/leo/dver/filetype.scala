@@ -12,27 +12,53 @@ class ImageFile(f:File) {
 	def smallFile = new File(f.getPath + "~small")
 	def outputFile = new File(f.getPath + "~out")
 
-	def params : Array[String] = try {
-		fromFile(paramsFile).mkString.split(" ")(1).split("x")
-	} catch{
-		case e:Exception => Array("", "")
+
+	def deserialize(s:String) : Map[String,String] =
+		s.split(";").map(p => p.split("="))
+			.foldLeft(Map[String,String]()) ((a, p) => p.length match {
+				case 0 => a
+				case 1 => a + (p(0) -> "")
+				case 2 => a + (p(0) -> p(1))
+				case _ => throw new Exception("wrong param: " + p.foldLeft("") ((a,v) => a.length match { case 0 => v case _ => a + "/" + v }))
+			})
+
+	def serialize (p:Map[String,String]) : String =
+		p.keys.map(k => k + "=" + p(k)).foldLeft("")((a,v) => a.length match {
+			case 0 => v
+			case _ => a + ";" + v
+		})
+ 
+	def params : Map[String,String] = try {
+		deserialize(fromFile(paramsFile).mkString)
+	} catch {
+		case e:Exception => Map("brightness"->"0", "contrast"->"0", "more"->"")
 	}
 
-	def brightness = params(0)
-	def contrast = params(1)
+	def imParams(p:Map[String,String]) : List[String] = List(
+		"-brightness-contrast", p("brightness") + "x" + p("contrast")
+	) ++ (p.keys.exists(_ == "more") match {
+		case true => p("more").split(" ")
+		case false => List()
+	})
 
-	def transform(params:String) : FileResponse = {
+	def transform(paramsStr:String) : FileResponse = {
 		if(!smallFile.exists) {
 			List("convert", f.getPath, "-scale", "600", smallFile.getPath)!!
 		}
 
-		if(params.length > 0) {
-			(List("convert", smallFile.getPath)
-				++ params.split(" ")
-				++ List(outputFile.getPath))!!
-			val os = new FileOutputStream(params)
-			os.write(params.getBytes)
-			os.close
+		if(paramsStr.length > 0) {
+			try {
+				val p = deserialize(paramsStr)
+			
+				(List("convert", smallFile.getPath)
+					++ imParams(p)
+					++ List(outputFile.getPath))!!
+				val os = new FileOutputStream(paramsFile)
+				os.write(serialize(p).getBytes)
+				os.close
+			} catch {
+				case e:Exception => println(new StackTrace(e).toString)
+			}
 		}
 
 		return new FileResponse(outputFile.exists match {

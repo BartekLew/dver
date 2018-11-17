@@ -169,23 +169,19 @@ class ImageEditor(f:ImageFile) extends Iface {
 	def tags = List(
 		new Tag("img", Map("src"->("/img/" + f.getPath),
 			"id"->"img_disp"), None),
-		new Tag("br"),
+		new Tag("br")
+	) ++ f.params.keys.map( p =>
 		new Tag("input", Map(
-			"placeholder"->"brightness", "id"->"img_bri",
-			"onkeypress"->"img_up(event)", "value"->f.brightness
-		), None),
-		new Tag("input", Map(
-			"placeholder"->"contrast", "id"->"img_contr",
-			"onkeypress"->"img_up(event)", "value"->f.contrast
+			"placeholder"->p, "id"->("img_"+p),
+			"onkeypress"->"img_up(event)", "value"->f.params(p)
 		), None)
 	)
 
 	def js = new Js().cond(new Js("ev.keyCode == 13"),
-			new JsVar("bri").set(new JsId("img_bri")->"value") +
-			new JsVar("con").set(new JsId("img_contr")->"value") +
 			new JsHttp("POST", new JsLiteral("/img/" + f.getPath),
-				new JsLiteral("-brightness-contrast ").jsVar("bri")
-					.literal("x").jsVar("con"),
+				f.params.keys.foldLeft(new Js())((a, p) =>
+					a.separator(";").literal(p + "=").jsId("img_" + p)->"value"
+				),
 				new Js("window.location.reload(false);")
 		)).asFun("img_up", "ev").code
 }
