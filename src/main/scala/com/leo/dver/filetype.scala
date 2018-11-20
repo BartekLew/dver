@@ -30,15 +30,26 @@ class Parameters(content : Map[String,String]) {
 		})
 
 	def asList(m: Map[String,String] => List[String]) = m(content)	
+
+	def forPreasent(key:String) : String = value(key) match {
+		case "" => ""
+		case _ => key + "=" + value(key) + "\n"
+	}
 }
 
 trait ImageTransformator {
+	def minatureName(base:String) : String
+	def outputName(base:String) : String
+
 	def makeMinature(f:ImageFile) : Unit
 	def adjustImage(p:Parameters, f:ImageFile) : Unit
 	def params : List[String]
 }
 
 class ImageMagick extends ImageTransformator {
+	def minatureName(base:String) = base + "~small"
+	def outputName(base:String) = base + "~out"
+
 	def imParams(p:Map[String,String]) : List[String] = List(
 		"-brightness-contrast", p("brightness") + "x" + p("contrast")
 	) ++ (p.keys.exists(_ == "more") match {
@@ -59,13 +70,45 @@ class ImageMagick extends ImageTransformator {
 	def params = List("contrast", "brightness", "more")
 }	
 
+class RawTherapee extends ImageTransformator {
+	def minatureName(base:String) = base + ".jpg"
+	def outputName(base:String) = base + ".out.jpg"
+	def resize = "[Resize]\nEnabled=true\nwidth=600"
+
+	def makeMinature(f:ImageFile) {
+		println("rawtherapee...")
+		val os = new FileOutputStream(f.getPath + ".pp3")
+		os.write(resize.getBytes)
+		os.close
+		
+		println(List("rawtherapee-cli", "-s", "-o", f.smallFile.getPath,
+			"-c", f.getPath)!!)
+	}
+
+	def configOf(p:Parameters) : String =
+		"[Exposure]\n" + params.foldLeft("") ((a,k) =>
+			a + p.forPreasent(k)
+		)
+
+	def adjustImage(p:Parameters, f:ImageFile) {
+		val os = new FileOutputStream(f.getPath + ".pp3")
+		os.write((configOf(p) + resize).getBytes)
+		os.close
+		
+		println("rawtherapee...")
+		println(List("rawtherapee-cli", "-o", f.outputFile.getPath, "-s", "-c", f.getPath)!!)
+	}
+
+	def params = List("Brightness", "Contrast", "Saturation")
+}
+
 class ImageFile(f:File, t:ImageTransformator) {
 	def this(path:String, t:ImageTransformator) = this(new File(path), t)
 	def getPath = f.getPath
 
 	def paramsFile = new File(f.getPath + "~params")
-	def smallFile = new File(f.getPath + "~small")
-	def outputFile = new File(f.getPath + "~out")
+	def smallFile = new File(t.minatureName(f.getPath))
+	def outputFile = new File(t.outputName(f.getPath))
  
 	def params : Parameters = try {
 		new Parameters(paramsFile)

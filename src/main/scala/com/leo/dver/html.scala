@@ -151,9 +151,10 @@ class FileUploader(cwd:File) extends Iface {
 }
 
 class FileEditor(f:File) extends Iface {
-	def contentEditor : Iface = new FSItem(f).extension match {
-		case "jpg" | "png" => new ImageEditor(new ImageFile(f, new ImageMagick()))
-		case _ => new TextEditor(f)
+	def contentEditor : Iface = try {
+		new ImageEditor(new ImageFile(f, new FSItem(f).imageTransformer))
+	} catch {
+		case e:Exception => new TextEditor(f)
 	}
 
 	def tags = List(

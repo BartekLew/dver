@@ -96,7 +96,7 @@ class GetPostHandler(respond:GetPostRequest=>GetPostResponse) extends HttpHandle
 class FSItem(path:String) {
 	def this(f:File) = this(f.getPath)
 
-	def extension = "^.*\\.".r.replaceFirstIn(path,"")
+	def extension = "^.*\\.".r.replaceFirstIn(path,"").toLowerCase
 	def mime = extension match {
 		case "pdf" => "application/pdf"
 		case "txt" => "text/plain"
@@ -105,10 +105,16 @@ class FSItem(path:String) {
 		case "css" => "text/css"
 		case _ => "application/octet-stream"
 	}
+
+	def imageTransformer = extension match {
+		case "dng" | "pef" => new RawTherapee()
+		case "jpg" | "png" | "tif" | "bmp" => new ImageMagick()
+		case _ => throw new Exception("Not a image file: " + extension)
+	}
 }
 
 class ImageHandler extends GetPostHandler(req => 
-	new ImageFile(req.query, new ImageMagick()).transform(req.post)
+	new ImageFile(req.query, new FSItem(req.query).imageTransformer).transform(req.post)
 )
 
 class DownloadHandler() extends GetPostHandler(req => new FileResponse(new File(req.query)))
