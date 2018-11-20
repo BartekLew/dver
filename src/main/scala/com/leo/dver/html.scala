@@ -171,7 +171,7 @@ class ImageEditor(f:ImageFile) extends Iface {
 		new Tag("img", Map("src"->("/img/" + f.getPath),
 			"id"->"img_disp"), None),
 		new Tag("br")
-	) ++ f.params.keys.map( p =>
+	) ++ f.paramNames.sorted.map( p =>
 		new Tag("input", Map(
 			"placeholder"->p, "id"->("img_"+p),
 			"onkeypress"->"img_up(event)", "value"->f.params.value(p)

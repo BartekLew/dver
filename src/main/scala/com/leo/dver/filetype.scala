@@ -73,7 +73,7 @@ class ImageMagick extends ImageTransformator {
 class RawTherapee extends ImageTransformator {
 	def minatureName(base:String) = base + ".jpg"
 	def outputName(base:String) = base + ".out.jpg"
-	def resize = "[Resize]\nEnabled=true\nwidth=600"
+	def resize = "[Resize]\nEnabled=true\nwidth=300"
 
 	def makeMinature(f:ImageFile) {
 		println("rawtherapee...")
@@ -96,10 +96,12 @@ class RawTherapee extends ImageTransformator {
 		os.close
 		
 		println("rawtherapee...")
-		println(List("rawtherapee-cli", "-o", f.outputFile.getPath, "-s", "-c", f.getPath)!!)
+		println(List("rawtherapee-cli", "-Y", "-o", f.outputFile.getPath, "-s", "-c", f.getPath)!!)
 	}
 
-	def params = List("Brightness", "Contrast", "Saturation")
+	def params = List(
+		"Auto", "Brightness", "Contrast", "Saturation", "Compensation", "Black"
+	)
 }
 
 class ImageFile(f:File, t:ImageTransformator) {
@@ -117,6 +119,8 @@ class ImageFile(f:File, t:ImageTransformator) {
 			(a,v) => a + (v->"")
 		))
 	}
+
+	def paramNames = t.params
 
 	def transform(paramsStr:String) : FileResponse = {
 		if(!smallFile.exists) {
