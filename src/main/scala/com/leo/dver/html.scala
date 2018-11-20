@@ -173,7 +173,7 @@ class ImageEditor(f:ImageFile) extends Iface {
 	) ++ f.params.keys.map( p =>
 		new Tag("input", Map(
 			"placeholder"->p, "id"->("img_"+p),
-			"onkeypress"->"img_up(event)", "value"->f.params(p)
+			"onkeypress"->"img_up(event)", "value"->f.params.value(p)
 		), None)
 	)
 
