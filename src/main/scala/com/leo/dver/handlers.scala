@@ -108,7 +108,7 @@ class FSItem(path:String) {
 }
 
 class ImageHandler extends GetPostHandler(req => 
-	new ImageFile(req.query).transform(req.post, new ImageMagick())
+	new ImageFile(req.query, new ImageMagick()).transform(req.post)
 )
 
 class DownloadHandler() extends GetPostHandler(req => new FileResponse(new File(req.query)))

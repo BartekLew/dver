@@ -35,6 +35,7 @@ class Parameters(content : Map[String,String]) {
 trait ImageTransformator {
 	def makeMinature(f:ImageFile) : Unit
 	def adjustImage(p:Parameters, f:ImageFile) : Unit
+	def params : List[String]
 }
 
 class ImageMagick extends ImageTransformator {
@@ -54,10 +55,12 @@ class ImageMagick extends ImageTransformator {
 			++ p.asList(imParams)
 			++ List(f.outputFile.getPath))!!
 	}
-}
 
-class ImageFile(f:File) {
-	def this(path:String) = this(new File(path))
+	def params = List("contrast", "brightness", "more")
+}	
+
+class ImageFile(f:File, t:ImageTransformator) {
+	def this(path:String, t:ImageTransformator) = this(new File(path), t)
 	def getPath = f.getPath
 
 	def paramsFile = new File(f.getPath + "~params")
@@ -67,12 +70,12 @@ class ImageFile(f:File) {
 	def params : Parameters = try {
 		new Parameters(paramsFile)
 	} catch {
-		case e:Exception => new Parameters(Map(
-			"brightness"->"0", "contrast"->"0", "more"->""
+		case e:Exception => new Parameters(t.params.foldLeft(Map[String,String]())(
+			(a,v) => a + (v->"")
 		))
 	}
 
-	def transform(paramsStr:String, t:ImageTransformator) : FileResponse = {
+	def transform(paramsStr:String) : FileResponse = {
 		if(!smallFile.exists) {
 			t.makeMinature(this)
 		}

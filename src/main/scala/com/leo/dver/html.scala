@@ -152,7 +152,7 @@ class FileUploader(cwd:File) extends Iface {
 
 class FileEditor(f:File) extends Iface {
 	def contentEditor : Iface = new FSItem(f).extension match {
-		case "jpg" | "png" => new ImageEditor(new ImageFile(f))
+		case "jpg" | "png" => new ImageEditor(new ImageFile(f, new ImageMagick()))
 		case _ => new TextEditor(f)
 	}
 
