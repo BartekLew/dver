@@ -151,10 +151,11 @@ class FileUploader(cwd:File) extends Iface {
 }
 
 class FileEditor(f:File) extends Iface {
-	def contentEditor : Iface = try {
-		new ImageEditor(new ImageFile(f, new FSItem(f).imageTransformer))
-	} catch {
-		case e:Exception => new TextEditor(f)
+	def contentEditor : Iface = new FSItem(f).mime.split("/")(0) match {
+		case "image" => new ImageEditor(
+			new ImageFile(f, new FSItem(f).imageTransformer))
+		case "video" => new VideoEditor(f)
+		case _ => new TextEditor(f)
 	}
 
 	def tags = List(
@@ -164,6 +165,20 @@ class FileEditor(f:File) extends Iface {
 	))) ++ contentEditor.tags
 
 	def js = contentEditor.js
+}
+
+class VideoEditor(f:File) extends Iface {
+	def tags = List(
+		new Tag("video controls", Map("width"->"800", "height"->"600"),
+			Some(new Tag("source", Map(
+				"src"->("/R/" + f.getPath),
+				"type"->(new FSItem(f).mime)),
+				None
+			).toString)
+		)
+	)
+
+	def js = ""
 }
 
 class ImageEditor(f:ImageFile) extends Iface {
@@ -278,9 +293,9 @@ class Document(ifaces : List[Iface]) extends Iface {
 
 	def tags = List(
 		headCss(Map(
-			"textarea"->"width:60em;height:90%",
-			"#sh_in"->"width:60em",
-			"#sh_out, #sh_err"->"height:10em",
+			"textarea"->"width:70em;height:90%",
+			"#sh_in"->"width:120ex",
+			"#sh_out, #sh_err"->"width:49%;height:60ex",
 			"body,textarea,input"->"background-color:black; color:white;",
 			"a"->"color:yellow")),
 		new Tag("body", getTags)
