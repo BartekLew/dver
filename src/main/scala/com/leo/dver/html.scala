@@ -83,6 +83,11 @@ trait Iface {
 	}
 }
 
+class HtmlIface(content:List[Tag]) extends Iface {
+	def tags = content
+	def js = ""
+}
+
 class ScriptResult(path:String) extends Iface {
 	def tags : List[Tag] = List(
 		new Tag("div", Map(), Some(path!!))
@@ -295,7 +300,7 @@ class Document(ifaces : List[Iface]) extends Iface {
 		headCss(Map(
 			"textarea"->"width:70em;height:90%",
 			"#sh_in"->"width:120ex",
-			"#sh_out, #sh_err"->"width:49%;height:60ex",
+			"#sh_out, #sh_err"->"width:49%;height:90%",
 			"body,textarea,input"->"background-color:black; color:white;",
 			"a"->"color:yellow")),
 		new Tag("body", getTags)
