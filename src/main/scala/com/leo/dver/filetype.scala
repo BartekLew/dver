@@ -58,7 +58,7 @@ class ImageMagick extends ImageTransformator {
 	})
 
 	def makeMinature(f:ImageFile) {
-		List("convert", f.getPath, "-scale", "600", f.smallFile.getPath)!!
+		List("convert", f.getPath, "-scale", "600", "JPG:" + f.smallFile.getPath)!!
 	}
 
 	def adjustImage(p:Parameters, f:ImageFile) {

@@ -105,6 +105,7 @@ class FSItem(path:String) {
 		case "png" => "image/png"
 		case "dng" => "image/dng"
 		case "pef" => "image/x-pentax-raw"
+		case "ppm" => "image/x-portable-pixmap"
 		case "css" => "text/css"
 		case "mp4" => "video/mp4"
 		case "avi" => "video/x-msvideo"
@@ -114,7 +115,7 @@ class FSItem(path:String) {
 
 	def imageTransformer = extension match {
 		case "dng" | "pef" => new RawTherapee()
-		case "jpg" | "png" | "tif" | "bmp" => new ImageMagick()
+		case "jpg" | "png" | "tif" | "bmp" | "ppm" => new ImageMagick()
 		case _ => throw new Exception("Not an image file: " + extension)
 	}
 }
