@@ -35,6 +35,8 @@ object Main {
 		   https://github.com/BartekLew/box/blob/master/box.c
 		*/
 		if(new File(pwd + "/box.out").exists == false) {
+			var is = new File(cwd + "/box.in")
+			if(is.exists){ is.delete() }
 			new File(cwd + "/box.out").createNewFile()
 			new File(cwd + "/box.err").createNewFile()
 			Process("box bash -i", new File(pwd)).!!
