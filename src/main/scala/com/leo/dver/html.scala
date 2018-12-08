@@ -81,6 +81,20 @@ trait Iface {
 		case true => xml.Utility.escape(fromFile(f, "utf-8").mkString)
 		case false => ""
 	}
+
+	def literalTab(inputId:String) =
+		new Js().cond(new Js("ev.keyCode == 9"),
+			new Js().call("ev.preventDefault", List()) +
+			new JsVar("ed").set(new JsId(inputId)) +
+			new JsVar("pos").set(new Js("ed.selectionStart")) +
+			new Js("ed.value").set(
+				new Js("ed.value.substring(0, pos)")
+					.literal("\\t").jsVar(
+		"ed.value.substring(ed.selectionEnd, ed.value.length)"
+				)
+			) +
+			new Js("ed.selectionStart = ed.selectionEnd = pos+1;")
+		)
 }
 
 class HtmlIface(content:List[Tag]) extends Iface {
@@ -220,18 +234,7 @@ class TextEditor(f:File) extends Iface {
 			new JsId("texted")->"value",
 			new Js("alert(\"done\");")
 		).asFun("updateFile").code +
-		new Js().cond(new Js("ev.keyCode == 9"),
-			new Js().call("ev.preventDefault", List()) +
-			new JsVar("ed").set(new JsId("texted")) +
-			new JsVar("pos").set(new Js("ed.selectionStart")) +
-			new Js("ed.value").set(
-				new Js("ed.value.substring(0, pos)")
-					.literal("\\t").jsVar(
-		"ed.value.substring(ed.selectionEnd, ed.value.length)"
-				)
-			) +
-			new Js("ed.selectionStart = ed.selectionEnd = pos+1;")
-		).asFun("onKey", "ev").code
+		literalTab("texted").asFun("onKey", "ev").code
 }
 
 class Shell(path:String) extends Iface {
@@ -244,7 +247,7 @@ class Shell(path:String) extends Iface {
 				new Js("o.scrollTop = o.scrollHeight")
 			)
 		)).foldLeft(new Js()) ((a,b) => a+b).asFun("refresh_output").code +
-		new Js().cond(new Js("ev.keyCode == 13"),
+		(new Js().cond(new Js("ev.keyCode == 13"),
 			new JsVar("cmd").set(new JsId("sh_in")) +
 			new JsVar("out").set(new JsId("sh_out")) +
 			new Js("refresh_output();") +
@@ -252,7 +255,7 @@ class Shell(path:String) extends Iface {
 				new Js().jsVar("cmd.value"),
 				new Js("setInterval(refresh_output, 2000);") +
 				new Js("cmd.value").set(new JsLiteral(""))
-		)).asFun("sh_cmd", "ev").code +
+		)) + literalTab("sh_in")).asFun("sh_cmd", "ev").code +
 		new JsHttp("POST", new JsLiteral("/w/" + path + "/box.ctl"),
 			new JsLiteral("k"), new Js("window.location.reload(false);")
 		).asFun("sh_term").code +
