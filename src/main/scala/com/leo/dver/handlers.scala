@@ -74,9 +74,15 @@ class FileResponse(f:File) extends GetPostResponse {
 		t.sendResponseHeaders(200, f.length())
 
 		val os = t.getResponseBody
-		Iterator.continually(in.read)
-			.takeWhile(-1 !=)
-			.foreach(os.write)
+		var buff = new Array[Byte](4096)
+		var s = 0;
+
+		while (in.available > 0) {
+			s = in.read(buff)
+			os.write(buff, 0, s)
+		}
+
+		in.close()
 		os.close()
 	}
 }
