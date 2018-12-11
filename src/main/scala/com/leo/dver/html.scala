@@ -82,19 +82,44 @@ trait Iface {
 		case false => ""
 	}
 
-	def literalTab(inputId:String) =
-		new Js().cond(new Js("ev.keyCode == 9"),
-			new Js().call("ev.preventDefault", List()) +
+	def writeTo(inputId:String, text:Js) =
+		new Js().call("ev.preventDefault", List()) +
 			new JsVar("ed").set(new JsId(inputId)) +
 			new JsVar("pos").set(new Js("ed.selectionStart")) +
 			new Js("ed.value").set(
 				new Js("ed.value.substring(0, pos)")
-					.literal("\\t").jsVar(
+					.append(text.code).jsVar(
 		"ed.value.substring(ed.selectionEnd, ed.value.length)"
 				)
 			) +
-			new Js("ed.selectionStart = ed.selectionEnd = pos+1;")
+		new Js("ed.selectionStart = ed.selectionEnd = pos+1;")
+
+	def literalTab(inputId:String) =
+		new Js().cond(new Js("ev.keyCode == 9"),
+			writeTo(inputId, new JsLiteral("\\t"))
 		)
+
+	def ru_map = Map(
+		"`" -> "ё", "~" -> "Ё", "q" -> "й", "Q" -> "Й", "w" -> "ц", "W" -> "Ц",
+		"e" -> "у", "E" -> "У", "r" -> "к", "R" -> "К", "t" -> "е", "T" -> "Е",
+		"y" -> "н", "Y" -> "Н", "U" -> "Г", "u" -> "г", "I" -> "Ш", "i" -> "ш",
+		"o" -> "щ", "O" -> "Щ", "p" -> "з", "P" -> "З", "[" -> "х", "{" -> "Х",
+		"]" -> "ъ", "}" -> "Ъ", "a" -> "ф", "A" -> "Ф", "s" -> "ы", "S" -> "Ы",
+		"d" -> "в", "D" -> "В", "f" -> "а", "F" -> "А", "g" -> "п", "G" -> "П",
+		"h" -> "р", "H" -> "Р", "j" -> "о", "J" -> "О", "k" -> "л", "K" -> "Л",
+		"l" -> "д", "L" -> "Д", ";" -> "ж", ":" -> "Ж", "'" -> "э", "\\\"" -> "Э",
+		"z" -> "я", "Z" -> "Я", "x" -> "ч", "X" -> "Ч", "c" -> "с", "C" -> "С",
+		"v" -> "м", "V" -> "М", "b" -> "и", "B" -> "И", "n" -> "т", "N" -> "Т",
+		"m" -> "ь", "M" -> "Ь", "," -> "б", "<" -> "Б", "." -> "ю", ">" -> "Ю",
+		"/" -> ".", "?" -> ",", "^" -> "?", "#" -> ":", "$" -> ";", "@" -> "\\\""
+	) 
+
+	def cyryllic(triggerId:String, outputId:String) = new JsHash("keymap", ru_map) +
+		new JsVar("key").set(new Js("keymap[ev.key]")) +
+		new Js().cond(
+			new JsId(triggerId)->"checked" && new Js("key && !ev.ctrlKey"),
+			writeTo(outputId, new Js("key"))
+		);
 }
 
 class HtmlIface(content:List[Tag]) extends Iface {
@@ -223,6 +248,9 @@ class ImageEditor(f:ImageFile) extends Iface {
 
 class TextEditor(f:File) extends Iface {
 	def tags = List(
+		new Tag("input", Map(
+			"type" -> "checkbox", "id" -> "writeCyryllic"
+		), Some("cyryllic")), new Tag("br"),
 		new Tag("textarea", Map("id" -> "texted",
 				"onkeypress"->"onKey(event)"),
 			Some(fileContent(f))),
@@ -234,7 +262,9 @@ class TextEditor(f:File) extends Iface {
 			new JsId("texted")->"value",
 			new Js("alert(\"done\");")
 		).asFun("updateFile").code +
-		literalTab("texted").asFun("onKey", "ev").code
+		(literalTab("texted")
+		+ cyryllic("writeCyryllic", "texted")
+		).asFun("onKey", "ev").code
 }
 
 class Shell(path:String) extends Iface {

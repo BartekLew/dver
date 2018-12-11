@@ -52,6 +52,8 @@ class Js(val code:String) {
 		new Js(code + "if(" + test.code + ") {" + action.code + "}")
 
 	def ->(prop:String) = new Js(code + "." + prop)
+
+	def &&(prop:Js) = new Js(code + "&&" + prop.code)
 }
 
 class JsLocation() extends Js("window.location.href")
@@ -60,7 +62,8 @@ class JsVar(name:String) extends Js("var " + name)
 
 class JsId(name:String) extends Js("document.getElementById(\"" + name + "\")")
 
-class JsLiteral(v:String) extends Js("\"" + v + "\"")
+class JsLiteral(v:String) extends Js("\"" + v + "\""
+)
 
 class JsHttp(method:String, url:Js, data:Js, action:Js) extends Js(
 	(new JsVar("o").set(new Js("new XMLHttpRequest()")).call(
@@ -70,4 +73,10 @@ class JsHttp(method:String, url:Js, data:Js, action:Js) extends Js(
 			" && this.status == 200) {" + action.code + "}")
 			.asFun("")
 	).call("o.send", List(data)).code).code
+)
+
+class JsHash(id:String, values:Map[String,String]) extends Js(
+	"var " + id + " = { " + values.keys.map(k =>
+		(new JsLiteral(k) + new Js(" : ") + new JsLiteral(values(k))).code
+	).mkString(",") + "};"
 )
