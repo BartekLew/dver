@@ -141,9 +141,15 @@ class WriteHandler extends HttpHandler {
 			val o = new FileOutputStream(lPath(t))
 			val i = t.getRequestBody
 
-			Iterator.continually(i.read)
-				.takeWhile(-1 !=)
-				.foreach(o.write)
+			var buff = new Array[Byte](4096)
+			var s = 0
+			do {
+				s = i.read(buff)
+				if(s > 0)
+					o.write(buff, 0, s)
+			} while (s>0)
+
+			i.close
 			o.close
 		}
 
