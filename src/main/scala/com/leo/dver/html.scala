@@ -291,7 +291,21 @@ class Shell(path:String) extends Iface {
 		).asFun("sh_term").code +
 		new JsHttp("POST", new JsLiteral("/w/" + path + "/box.ctl"),
 			new JsLiteral("c"), new Js()
-		).asFun("sh_cls").code
+		).asFun("sh_cls").code +
+		(new JsVar("day").set(new Js("new Date()")) +
+		new JsHttp("POST", new JsLiteral("/sh/"),
+			new JsLiteral("sudo date -s ")
+				.append("day.getFullYear()")
+				.literal("-")
+				.append("(day.getMonth()+1)")
+				.literal("-")
+				.append("day.getDate()")
+				.literal("\\\\ ")
+				.append("day.getHours()")
+				.literal(":")
+				.append("day.getMinutes()"),
+			new Js("alert(\"ok\");")
+		)).asFun("sh_date").code
 
 	def tags = List(
 		new Tag("h4", Map(), Some("shell:")),
@@ -302,6 +316,7 @@ class Shell(path:String) extends Iface {
 		new Tag("br"),
 		new Button("clear", "sh_cls()"),
 		new Button("terminate", "sh_term()"),
+		new Button("set date", "sh_date()"),
 		new Tag("br")
 	) ++ (List("out", "err").map( stream => List(
 		new Tag("textarea readonly", Map("id"->("sh_" + stream)),
