@@ -113,6 +113,7 @@ class FSItem(path:String) {
 		case "pef" => "image/x-pentax-raw"
 		case "ppm" => "image/x-portable-pixmap"
 		case "css" => "text/css"
+		case "vtt" => "text/vtt"
 		case "mp4" => "video/mp4"
 		case "avi" => "video/x-msvideo"
 		case "mov" => "video/quicktime"

@@ -58,7 +58,10 @@ object Main {
 		server.createContext("/r/", new UriHandler( uri => {
 			val handle = new File( "./" + uri)
 			handle.isDirectory match {
-				case true => new Document(dirContent(handle)).html
+				case true => new Document(
+					dirContent(handle) ++ List(new MycalIface("init")),
+					Map("onload"->"init()")
+				).html
 				case false => new Document(
 					List(new FileEditor(handle), new Shell(handle.getParent))
 				).html

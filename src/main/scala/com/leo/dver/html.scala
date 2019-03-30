@@ -127,6 +127,24 @@ class HtmlIface(content:List[Tag]) extends Iface {
 	def js = ""
 }
 
+class MycalIface(initFun:String) extends Iface {
+	def tags = List(
+		new Tag("script", Map(
+				"type" -> "text/javascript",
+				"src" -> "/R/tools/mycal/mycal.js"
+			), Some("")
+		),
+		new Tag("div", Map("id"->"clock_out",
+				"style"->"position:absolute;top:5pt;right:5pt"
+			), Some("")
+		)
+	)
+
+	def js = (new JsId("clock_out")->"innerHTML").set(
+		new Js("new MyCal(new Date()).string()")
+	).asFun(initFun).code
+}
+
 class ScriptResult(path:String) extends Iface {
 	def tags : List[Tag] = List(
 		new Tag("div", Map(), Some(path!!))
@@ -329,7 +347,9 @@ class Shell(path:String) extends Iface {
 	)).foldLeft(List[Tag]()) ((a,b)=>a++b))
 }
 
-class Document(ifaces : List[Iface]) extends Iface {
+class Document(ifaces : List[Iface], bodyAttr : Map[String,String]) extends Iface {
+	def this(ifaces : List[Iface]) = this(ifaces, Map[String,String]())
+
 	private def getTags = ifaces.size match {
 		case 0 => List()
 		case _ => ifaces.head.merge(ifaces.tail)
@@ -340,7 +360,12 @@ class Document(ifaces : List[Iface]) extends Iface {
                  * convert content to encoding specified in locale.
                  * That's why set it to UTF-8 or expect garbage in text
                  * file editor. :( */
-		List(new Encoding("utf-8"), new CssBlock(styles),
+		List(new Encoding("utf-8"),
+			new Tag("meta", Map(
+				"name" -> "viewport",
+				"content" -> "width=device-width",
+				"initial-scale" -> "1.0"
+			)), new CssBlock(styles),
 			new Tag("script", js))
 	)
 
@@ -351,7 +376,9 @@ class Document(ifaces : List[Iface]) extends Iface {
 			"#sh_out, #sh_err"->"width:49%;height:90%",
 			"body,textarea,input"->"background-color:black; color:white;",
 			"a"->"color:yellow")),
-		new Tag("body", getTags)
+		new Tag("body", bodyAttr,
+			Some(getTags.foldLeft(""){(a, v)=> a + v.toString})
+		)
 	)
 
 	def js = ifaces.foldLeft("") {
