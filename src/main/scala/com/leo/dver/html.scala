@@ -49,11 +49,25 @@ class StyledLink(url:String, style:String, text:String) extends Tag(
 
 class Encoding(v:String) extends Tag("meta", Map("charset" -> v))
 
-class CssBlock(rules:Map[String,String]) extends Tag("style", Map(),
-	Some(rules.keys.foldLeft("") {
+class CssBlock(condition:Option[String], rules:Map[String,String]) {
+	def body = rules.keys.foldLeft("") {
 		(a, k) => a + "\n" + k + "{" + rules(k) + "}"
+	} + "\n\n"
+
+	def code = condition match {
+		case None => body
+		case Some(r) => "@media screen and (" + condition.get + ") {\n" +
+			body + "\n}\n\n"
 	}
-))
+}
+
+class Stylesheet(blocks:List[CssBlock]) {
+	def code = blocks.foldLeft("") {
+		(a,v) => a + v.code
+	}
+}
+
+class CssTag(style:Stylesheet) extends Tag("style", Map(), Some(style.code))
 
 class Button(text:String, action:String) extends Tag(
 	"button", Map("onclick"->action), Some(text)
@@ -355,7 +369,7 @@ class Document(ifaces : List[Iface], bodyAttr : Map[String,String]) extends Ifac
 		case _ => ifaces.head.merge(ifaces.tail)
 	}
 
-	def headCss(styles:Map[String,String]) = new Tag("head",
+	def headCss(styles:Stylesheet) = new Tag("head",
                 /* FIXME: if system locale is not UTF-8, fromFile() will
                  * convert content to encoding specified in locale.
                  * That's why set it to UTF-8 or expect garbage in text
@@ -365,17 +379,27 @@ class Document(ifaces : List[Iface], bodyAttr : Map[String,String]) extends Ifac
 				"name" -> "viewport",
 				"content" -> "width=device-width",
 				"initial-scale" -> "1.0"
-			)), new CssBlock(styles),
+			)), new CssTag(styles),
 			new Tag("script", js))
 	)
 
 	def tags = List(
-		headCss(Map(
-			"textarea"->"width:70em;height:90%",
-			"#sh_in"->"width:120ex",
-			"#sh_out, #sh_err"->"width:49%;height:90%",
-			"body,textarea,input"->"background-color:black; color:white;",
-			"a"->"color:yellow")),
+		headCss(new Stylesheet(List(
+			new CssBlock(None, Map(
+				"textarea"->"width:70em;height:90%",
+				"#sh_in"->"width:120ex",
+				"#sh_out, #sh_err"->"width:49%;height:90%",
+				"body,textarea,input"->"background-color:black; color:white;",
+				"a"->"color:yellow"
+			)),
+			new CssBlock(Some("max-width : 1024px"), Map(
+				"body" -> "font-size:15pt",
+				"#sh_in" -> "width:100%",
+				"#sh_out" -> "width:100%;height:50%;float:none",
+				"#sh_err" -> "width:100%;height:35%",
+				"a" -> "padding:0.5em"
+			))
+		))),
 		new Tag("body", bodyAttr,
 			Some(getTags.foldLeft(""){(a, v)=> a + v.toString})
 		)
